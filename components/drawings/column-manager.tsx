@@ -1,6 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -39,6 +56,77 @@ const typeLabels: Record<ColumnType, string> = {
     [ColumnType.BOOLEAN]: 'Boolean',
 };
 
+interface SortableColumnItemProps {
+    column: DrawingColumn;
+    onEdit: (column: DrawingColumn) => void;
+    onDelete: (column: DrawingColumn) => void;
+}
+
+function SortableColumnItem({ column, onEdit, onDelete }: SortableColumnItemProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: column.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="flex items-center justify-between rounded-lg border bg-background p-3"
+        >
+            <div className="flex items-center gap-3">
+                <button
+                    {...attributes}
+                    {...listeners}
+                    className="cursor-grab touch-none hover:text-foreground text-muted-foreground"
+                >
+                    <GripVertical className="h-4 w-4" />
+                </button>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">{column.name}</span>
+                        {column.required && (
+                            <Badge variant="secondary" className="text-xs">
+                                Required
+                            </Badge>
+                        )}
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                        {typeLabels[column.type]}
+                    </span>
+                </div>
+            </div>
+            <div className="flex gap-1">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onEdit(column)}
+                >
+                    <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDelete(column)}
+                    className="text-destructive hover:text-destructive"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 interface ColumnManagerProps {
     jobId: string;
 }
@@ -52,6 +140,48 @@ export function ColumnManager({ jobId }: ColumnManagerProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [editingColumn, setEditingColumn] = useState<DrawingColumn | null>(null);
     const [deletingColumn, setDeletingColumn] = useState<DrawingColumn | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const sortedColumns = columns?.slice().sort((a, b) => a.order - b.order) ?? [];
+    const nextOrder = sortedColumns.length > 0 ? Math.max(...sortedColumns.map((c) => c.order)) + 1 : 0;
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = sortedColumns.findIndex((c) => c.id === active.id);
+            const newIndex = sortedColumns.findIndex((c) => c.id === over.id);
+
+            const reorderedColumns = arrayMove(sortedColumns, oldIndex, newIndex);
+
+            // Update all affected columns with new order values
+            try {
+                await Promise.all(
+                    reorderedColumns.map((column, index) =>
+                        updateColumn.mutateAsync({
+                            jobId,
+                            columnId: column.id,
+                            dto: {
+                                name: column.name,
+                                type: column.type,
+                                required: column.required,
+                                order: index,
+                            },
+                        })
+                    )
+                );
+            } catch (error) {
+                toast.error('Failed to reorder columns');
+                console.error(error);
+            }
+        }
+    };
 
     const handleCreate = async (data: CreateDrawingColumnDto) => {
         try {
@@ -88,9 +218,6 @@ export function ColumnManager({ jobId }: ColumnManagerProps) {
         }
     };
 
-    const sortedColumns = columns?.slice().sort((a, b) => a.order - b.order) ?? [];
-    const nextOrder = sortedColumns.length > 0 ? Math.max(...sortedColumns.map((c) => c.order)) + 1 : 0;
-
     if (error) {
         return (
             <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
@@ -115,48 +242,27 @@ export function ColumnManager({ jobId }: ColumnManagerProps) {
                     <Skeleton className="h-12 w-full" />
                 </div>
             ) : sortedColumns.length > 0 ? (
-                <div className="space-y-2">
-                    {sortedColumns.map((column) => (
-                        <div
-                            key={column.id}
-                            className="flex items-center justify-between rounded-lg border p-3"
-                        >
-                            <div className="flex items-center gap-3">
-                                <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-medium">{column.name}</span>
-                                        {column.required && (
-                                            <Badge variant="secondary" className="text-xs">
-                                                Required
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <span className="text-sm text-muted-foreground">
-                                        {typeLabels[column.type]}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex gap-1">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setEditingColumn(column)}
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setDeletingColumn(column)}
-                                    className="text-destructive hover:text-destructive"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext
+                        items={sortedColumns.map((c) => c.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        <div className="space-y-2">
+                            {sortedColumns.map((column) => (
+                                <SortableColumnItem
+                                    key={column.id}
+                                    column={column}
+                                    onEdit={setEditingColumn}
+                                    onDelete={setDeletingColumn}
+                                />
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    </SortableContext>
+                </DndContext>
             ) : (
                 <div className="flex h-24 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
                     No columns defined. Add columns to structure your drawing data.

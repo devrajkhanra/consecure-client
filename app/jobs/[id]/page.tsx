@@ -12,11 +12,13 @@ import {
     Briefcase,
     MapPin,
     Table2,
+    Settings2,
+    MoreVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Dialog,
     DialogContent,
@@ -34,6 +36,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useJob, useUpdateJob, useDeleteJob } from '@/hooks/use-jobs';
 import { useDrawingColumns } from '@/hooks/use-drawing-columns';
 import { useDrawings, useCreateDrawing, useUpdateDrawing, useDeleteDrawing } from '@/hooks/use-drawings';
@@ -57,6 +66,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
     const [isAddingDrawing, setIsAddingDrawing] = useState(false);
     const [editingDrawing, setEditingDrawing] = useState<Drawing | null>(null);
     const [deletingDrawing, setDeletingDrawing] = useState<Drawing | null>(null);
@@ -160,14 +170,31 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setIsEditing(true)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                    </Button>
-                    <Button variant="destructive" onClick={() => setIsDeleting(true)}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit Job
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setIsColumnConfigOpen(true)}>
+                                <Settings2 className="mr-2 h-4 w-4" />
+                                Configure Columns
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => setIsDeleting(true)}
+                                className="text-destructive focus:text-destructive"
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Job
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
@@ -207,28 +234,6 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 </Card>
             </div>
 
-            {/* Column Manager */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Column Configuration</CardTitle>
-                    <CardDescription>
-                        Define the structure for your drawing list
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {columnsLoading ? (
-                        <div className="space-y-2">
-                            <Skeleton className="h-12 w-full" />
-                            <Skeleton className="h-12 w-full" />
-                        </div>
-                    ) : (
-                        <ColumnManager jobId={id} />
-                    )}
-                </CardContent>
-            </Card>
-
-            <Separator />
-
             {/* Drawings Section */}
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -250,6 +255,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                             <Skeleton className="h-16 w-full" />
                             <Skeleton className="h-16 w-full" />
                         </div>
+                    ) : columns && columns.length === 0 ? (
+                        <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
+                            <p>No columns configured yet.</p>
+                            <Button variant="outline" size="sm" onClick={() => setIsColumnConfigOpen(true)}>
+                                <Settings2 className="mr-2 h-4 w-4" />
+                                Configure Columns
+                            </Button>
+                        </div>
                     ) : (
                         <DrawingTable
                             drawings={drawings ?? []}
@@ -260,6 +273,23 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     )}
                 </CardContent>
             </Card>
+
+            {/* Column Configuration Modal */}
+            <Dialog open={isColumnConfigOpen} onOpenChange={setIsColumnConfigOpen}>
+                <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Column Configuration</DialogTitle>
+                        <DialogDescription>
+                            Define the structure for your drawing list
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="flex-1 -mx-6 px-6">
+                        <div className="py-4">
+                            <ColumnManager jobId={id} />
+                        </div>
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
 
             {/* Edit Job Dialog */}
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
