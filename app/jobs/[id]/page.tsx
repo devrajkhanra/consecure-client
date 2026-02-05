@@ -14,6 +14,7 @@ import {
     Table2,
     Settings2,
     MoreVertical,
+    BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +50,7 @@ import { JobForm } from '@/components/jobs/job-form';
 import { ColumnManager } from '@/components/drawings/column-manager';
 import { DrawingTable } from '@/components/drawings/drawing-table';
 import { DrawingForm } from '@/components/drawings/drawing-form';
+import { JobStatCards, StatCardConfigurator } from '@/components/jobs/stat-cards';
 import type { CreateJobDto, Drawing, CreateDrawingDto } from '@/types';
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -66,6 +68,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
+    const [isStatConfigOpen, setIsStatConfigOpen] = useState(false);
     const [isAddingDrawing, setIsAddingDrawing] = useState(false);
     const [editingDrawing, setEditingDrawing] = useState<Drawing | null>(null);
     const [deletingDrawing, setDeletingDrawing] = useState<Drawing | null>(null);
@@ -184,6 +187,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                 <Settings2 className="mr-2 h-4 w-4" />
                                 Configure Columns
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setIsStatConfigOpen(true)}>
+                                <BarChart3 className="mr-2 h-4 w-4" />
+                                Configure Stats
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 onClick={() => setIsDeleting(true)}
@@ -197,8 +204,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 </div>
             </div>
 
-            {/* Job Details */}
-            <div className="grid gap-4 md:grid-cols-3">
+            {/* Job Stats */}
+            <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Site</CardTitle>
@@ -232,6 +239,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Custom Stat Cards */}
+            {(columns?.length ?? 0) > 0 && (
+                <JobStatCards
+                    jobId={id}
+                    columns={columns ?? []}
+                    drawings={drawings ?? []}
+                    onConfigureClick={() => setIsStatConfigOpen(true)}
+                />
+            )}
 
             {/* Drawings Section */}
             <Card>
@@ -381,6 +398,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Stat Cards Configurator */}
+            <StatCardConfigurator
+                jobId={id}
+                columns={columns ?? []}
+                drawings={drawings ?? []}
+                open={isStatConfigOpen}
+                onOpenChange={setIsStatConfigOpen}
+            />
         </div>
     );
 }
