@@ -1,65 +1,175 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { FolderKanban, MapPin, Briefcase, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useProjects } from '@/hooks/use-projects';
+import { useSites } from '@/hooks/use-sites';
+import { useJobs } from '@/hooks/use-jobs';
+import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
+
+function StatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  href,
+  isLoading,
+}: {
+  title: string;
+  value: number;
+  description: string;
+  icon: React.ElementType;
+  href: string;
+  isLoading: boolean;
+}) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <Link href={href}>
+      <Card className="transition-all hover:shadow-md hover:border-primary/50 cursor-pointer">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-8 w-16" />
+          ) : (
+            <div className="text-2xl font-bold">{value}</div>
+          )}
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+export default function DashboardPage() {
+  const { data: projects, isLoading: projectsLoading } = useProjects();
+  const { data: sites, isLoading: sitesLoading } = useSites();
+  const { data: jobs, isLoading: jobsLoading } = useJobs();
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Welcome to Consecure. Manage your projects, sites, and jobs.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Projects"
+          value={projects?.length ?? 0}
+          description="Active and completed"
+          icon={FolderKanban}
+          href="/projects"
+          isLoading={projectsLoading}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+        <StatCard
+          title="Total Sites"
+          value={sites?.length ?? 0}
+          description="Across all projects"
+          icon={MapPin}
+          href="/sites"
+          isLoading={sitesLoading}
+        />
+        <StatCard
+          title="Total Jobs"
+          value={jobs?.length ?? 0}
+          description="All job entries"
+          icon={Briefcase}
+          href="/jobs"
+          isLoading={jobsLoading}
+        />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Overview</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">Active</div>
+            <p className="text-xs text-muted-foreground">System operational</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Projects</CardTitle>
+            <CardDescription>Latest projects added to the system</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {projectsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : projects && projects.length > 0 ? (
+              <div className="space-y-3">
+                {projects.slice(0, 5).map((project) => (
+                  <Link
+                    key={project.id}
+                    href={`/projects/${project.id}`}
+                    className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted"
+                  >
+                    <div>
+                      <p className="font-medium">{project.name}</p>
+                      <p className="text-sm text-muted-foreground">{project.clientName}</p>
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {project.workOrderNumber}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No projects yet. Create one to get started.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common tasks and shortcuts</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <Link
+              href="/projects?create=true"
+              className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              <FolderKanban className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">Create Project</p>
+                <p className="text-sm text-muted-foreground">Start a new project</p>
+              </div>
+            </Link>
+            <Link
+              href="/sites?create=true"
+              className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+              <MapPin className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">Add Site</p>
+                <p className="text-sm text-muted-foreground">Add a new site to a project</p>
+              </div>
+            </Link>
+            <Link
+              href="/jobs?create=true"
+              className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted"
+            >
+              <Briefcase className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">Create Job</p>
+                <p className="text-sm text-muted-foreground">Add a new job to a site</p>
+              </div>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
