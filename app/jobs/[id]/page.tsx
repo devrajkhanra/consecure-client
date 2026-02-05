@@ -18,7 +18,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Dialog,
     DialogContent,
@@ -276,18 +275,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
             {/* Column Configuration Modal */}
             <Dialog open={isColumnConfigOpen} onOpenChange={setIsColumnConfigOpen}>
-                <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
-                    <DialogHeader>
+                <DialogContent className="max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+                    <DialogHeader className="flex-shrink-0">
                         <DialogTitle>Column Configuration</DialogTitle>
                         <DialogDescription>
                             Define the structure for your drawing list
                         </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="flex-1 -mx-6 px-6">
-                        <div className="py-4">
-                            <ColumnManager jobId={id} />
-                        </div>
-                    </ScrollArea>
+                    <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4">
+                        <ColumnManager jobId={id} />
+                    </div>
                 </DialogContent>
             </Dialog>
 
