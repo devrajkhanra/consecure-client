@@ -112,6 +112,41 @@ export interface CreateDrawingDto {
 
 export type UpdateDrawingDto = Partial<CreateDrawingDto>;
 
+// ===== Drawing Change History =====
+export enum ChangeType {
+    CREATED = 'created',
+    UPDATED = 'updated',
+    MERGED = 'merged',
+    SPLIT = 'split',
+    STOPPED = 'stopped',
+    REMOVED = 'removed',
+    UPGRADED = 'upgraded',
+    RESTORED = 'restored',
+}
+
+export interface DrawingChangeHistory {
+    id: string;
+    drawingId: string;
+    jobId: string;
+    drawing?: Drawing;
+    changeType: ChangeType;
+    previousData?: Record<string, unknown>;
+    newData?: Record<string, unknown>;
+    relatedDrawingIds?: string[];
+    reason?: string;
+    changedBy?: string;
+    createdAt: string;
+}
+
+export interface CreateDrawingChangeHistoryDto {
+    changeType: ChangeType;
+    previousData?: Record<string, unknown>;
+    newData?: Record<string, unknown>;
+    relatedDrawingIds?: string[];
+    reason?: string;
+    changedBy?: string;
+}
+
 // ===== API Response Types =====
 export interface ApiError {
     statusCode: number;

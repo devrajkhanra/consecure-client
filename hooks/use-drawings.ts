@@ -67,3 +67,30 @@ export function useDeleteDrawing() {
         },
     });
 }
+
+// Bulk create drawings mutation (for Excel import)
+export function useBulkCreateDrawings() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            jobId,
+            drawings,
+        }: {
+            jobId: string;
+            drawings: Record<string, unknown>[];
+        }): Promise<Drawing[]> => {
+            // Create drawings sequentially to avoid overwhelming the server
+            const results: Drawing[] = [];
+            for (const data of drawings) {
+                const { data: drawing } = await api.post<Drawing>(`/jobs/${jobId}/drawings`, { data });
+                results.push(drawing);
+            }
+            return results;
+        },
+        onSuccess: (_, { jobId }) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEY, jobId] });
+        },
+    });
+}
+

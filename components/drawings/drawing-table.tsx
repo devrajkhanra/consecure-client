@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Pencil, Trash2, Check, X } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Check, X, History } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -19,16 +19,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ColumnType, type Drawing, type DrawingColumn } from '@/types';
+import { DrawingHistoryDialog } from '@/components/drawings/change-history';
 
 interface DrawingTableProps {
+    jobId: string;
     drawings: Drawing[];
     columns: DrawingColumn[];
     onEdit: (drawing: Drawing) => void;
     onDelete: (drawing: Drawing) => void;
 }
 
-export function DrawingTable({ drawings, columns, onEdit, onDelete }: DrawingTableProps) {
+export function DrawingTable({ jobId, drawings, columns, onEdit, onDelete }: DrawingTableProps) {
     const [page, setPage] = useState(0);
+    const [historyDrawingId, setHistoryDrawingId] = useState<string | null>(null);
     const pageSize = 10;
 
     const sortedColumns = columns.slice().sort((a, b) => a.order - b.order);
@@ -112,6 +115,10 @@ export function DrawingTable({ drawings, columns, onEdit, onDelete }: DrawingTab
                                                     <Pencil className="mr-2 h-4 w-4" />
                                                     Edit
                                                 </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setHistoryDrawingId(drawing.id)}>
+                                                    <History className="mr-2 h-4 w-4" />
+                                                    History
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem
                                                     onClick={() => onDelete(drawing)}
                                                     className="text-destructive focus:text-destructive"
@@ -164,6 +171,17 @@ export function DrawingTable({ drawings, columns, onEdit, onDelete }: DrawingTab
                         </Button>
                     </div>
                 </div>
+            )}
+
+            {/* History Dialog */}
+            {historyDrawingId && (
+                <DrawingHistoryDialog
+                    jobId={jobId}
+                    drawingId={historyDrawingId}
+                    columns={columns}
+                    open={!!historyDrawingId}
+                    onOpenChange={(open) => !open && setHistoryDrawingId(null)}
+                />
             )}
         </div>
     );

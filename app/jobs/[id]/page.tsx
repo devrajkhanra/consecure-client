@@ -15,6 +15,7 @@ import {
     Settings2,
     MoreVertical,
     BarChart3,
+    FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,12 +46,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useJob, useUpdateJob, useDeleteJob } from '@/hooks/use-jobs';
 import { useDrawingColumns } from '@/hooks/use-drawing-columns';
-import { useDrawings, useCreateDrawing, useUpdateDrawing, useDeleteDrawing } from '@/hooks/use-drawings';
+import { useDrawings, useCreateDrawing, useUpdateDrawing, useDeleteDrawing, useBulkCreateDrawings } from '@/hooks/use-drawings';
 import { JobForm } from '@/components/jobs/job-form';
 import { ColumnManager } from '@/components/drawings/column-manager';
 import { DrawingTable } from '@/components/drawings/drawing-table';
 import { DrawingForm } from '@/components/drawings/drawing-form';
 import { JobStatCards, StatCardConfigurator } from '@/components/jobs/stat-cards';
+import { ExcelUploadDialog } from '@/components/drawings/excel-upload';
 import type { CreateJobDto, Drawing, CreateDrawingDto } from '@/types';
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -64,12 +66,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const createDrawing = useCreateDrawing();
     const updateDrawing = useUpdateDrawing();
     const deleteDrawing = useDeleteDrawing();
+    const bulkCreateDrawings = useBulkCreateDrawings();
 
     const [isEditing, setIsEditing] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
     const [isStatConfigOpen, setIsStatConfigOpen] = useState(false);
     const [isAddingDrawing, setIsAddingDrawing] = useState(false);
+    const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
     const [editingDrawing, setEditingDrawing] = useState<Drawing | null>(null);
     const [deletingDrawing, setDeletingDrawing] = useState<Drawing | null>(null);
 
@@ -128,6 +132,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             toast.error('Failed to delete drawing');
             console.error(error);
         }
+    };
+
+    const handleBulkImport = async (drawings: Record<string, unknown>[]) => {
+        await bulkCreateDrawings.mutateAsync({ jobId: id, drawings });
     };
 
     if (jobLoading) {
@@ -251,13 +259,23 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                         <CardTitle>Drawings</CardTitle>
                         <CardDescription>Manage drawings for this job</CardDescription>
                     </div>
-                    <Button
-                        onClick={() => setIsAddingDrawing(true)}
-                        disabled={!columns || columns.length === 0}
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Drawing
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsExcelUploadOpen(true)}
+                            disabled={!columns || columns.length === 0}
+                        >
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Import Excel
+                        </Button>
+                        <Button
+                            onClick={() => setIsAddingDrawing(true)}
+                            disabled={!columns || columns.length === 0}
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Drawing
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     {drawingsLoading || columnsLoading ? (
@@ -275,6 +293,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                         </div>
                     ) : (
                         <DrawingTable
+                            jobId={id}
                             drawings={drawings ?? []}
                             columns={columns ?? []}
                             onEdit={(drawing) => setEditingDrawing(drawing)}
@@ -400,6 +419,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 drawings={drawings ?? []}
                 open={isStatConfigOpen}
                 onOpenChange={setIsStatConfigOpen}
+            />
+
+            {/* Excel Upload Dialog */}
+            <ExcelUploadDialog
+                jobId={id}
+                columns={columns ?? []}
+                open={isExcelUploadOpen}
+                onOpenChange={setIsExcelUploadOpen}
+                onImport={handleBulkImport}
             />
         </div>
     );
