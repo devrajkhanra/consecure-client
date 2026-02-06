@@ -205,38 +205,32 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             </div>
 
             {/* Job Stats */}
-            <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Site</CardTitle>
+            <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+                <Card className="p-3">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-muted-foreground">Site</span>
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <Link
-                            href={`/sites/${job.siteId}`}
-                            className="text-xl font-bold hover:underline"
-                        >
-                            {job.site?.name ?? 'View Site'}
-                        </Link>
-                    </CardContent>
+                    </div>
+                    <Link
+                        href={`/sites/${job.siteId}`}
+                        className="text-lg font-bold hover:underline truncate block"
+                    >
+                        {job.site?.name ?? 'View Site'}
+                    </Link>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Columns</CardTitle>
+                <Card className="p-3">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-muted-foreground">Columns</span>
                         <Table2 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-xl font-bold">{columns?.length ?? 0}</div>
-                    </CardContent>
+                    </div>
+                    <div className="text-lg font-bold">{columns?.length ?? 0}</div>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Drawings</CardTitle>
+                <Card className="p-3">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-muted-foreground">Drawings</span>
                         <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-xl font-bold">{drawings?.length ?? 0}</div>
-                    </CardContent>
+                    </div>
+                    <div className="text-lg font-bold">{drawings?.length ?? 0}</div>
                 </Card>
             </div>
 

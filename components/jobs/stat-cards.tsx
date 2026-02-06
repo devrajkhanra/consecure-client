@@ -136,7 +136,7 @@ export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: Job
     const getColumn = (columnId: string) => columns.find((c) => c.id === columnId);
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
             {cards.map((card) => {
                 const column = getColumn(card.columnId);
                 if (!column) return null;
@@ -144,32 +144,25 @@ export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: Job
                 const value = calculateAggregation(drawings, column, card.aggregation);
 
                 return (
-                    <Card key={card.id}>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                            <Calculator className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{value}</div>
-                            <p className="text-xs text-muted-foreground">
-                                {aggregationLabels[card.aggregation]} of {column.name}
-                            </p>
-                        </CardContent>
+                    <Card key={card.id} className="p-3">
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-muted-foreground truncate">{card.title}</span>
+                            <Calculator className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        </div>
+                        <div className="text-lg font-bold">{value}</div>
                     </Card>
                 );
             })}
 
             {/* Add Card Button */}
             <Card
-                className="border-dashed cursor-pointer hover:border-primary/50 transition-colors"
+                className="p-3 border-dashed cursor-pointer hover:border-primary/50 transition-colors"
                 onClick={onConfigureClick}
             >
-                <CardContent className="flex h-full items-center justify-center py-6">
-                    <div className="flex flex-col items-center text-muted-foreground">
-                        <Plus className="h-8 w-8 mb-2" />
-                        <span className="text-sm">Add Stat Card</span>
-                    </div>
-                </CardContent>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                    <Plus className="h-4 w-4" />
+                    <span className="text-sm">Add Stat</span>
+                </div>
             </Card>
         </div>
     );
