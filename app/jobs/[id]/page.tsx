@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -16,10 +16,19 @@ import {
     MoreVertical,
     BarChart3,
     FileSpreadsheet,
+    ChevronDown,
+    ChevronRight,
+    Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
     Dialog,
     DialogContent,
@@ -55,6 +64,11 @@ import { JobStatCards, StatCardConfigurator } from '@/components/jobs/stat-cards
 import { ExcelUploadDialog } from '@/components/drawings/excel-upload';
 import type { CreateJobDto, Drawing, CreateDrawingDto } from '@/types';
 
+// Local storage key for info collapse state
+function getInfoCollapseKey(jobId: string) {
+    return `job-info-collapsed-${jobId}`;
+}
+
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const router = useRouter();
@@ -76,6 +90,19 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
     const [editingDrawing, setEditingDrawing] = useState<Drawing | null>(null);
     const [deletingDrawing, setDeletingDrawing] = useState<Drawing | null>(null);
+    const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
+
+    // Load info collapse state
+    useEffect(() => {
+        const collapsed = localStorage.getItem(getInfoCollapseKey(id));
+        setIsInfoCollapsed(collapsed === 'true');
+    }, [id]);
+
+    const toggleInfoCollapse = () => {
+        const newState = !isInfoCollapsed;
+        setIsInfoCollapsed(newState);
+        localStorage.setItem(getInfoCollapseKey(id), String(newState));
+    };
 
     const handleUpdate = async (data: CreateJobDto) => {
         try {
@@ -212,35 +239,44 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 </div>
             </div>
 
-            {/* Job Stats */}
-            <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
-                <Card className="p-3">
-                    <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-muted-foreground">Site</span>
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
+            {/* Job Info - Compact & Collapsible */}
+            <Collapsible open={!isInfoCollapsed} onOpenChange={toggleInfoCollapse}>
+                <div className="flex items-center gap-2 mb-1">
+                    <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-6 px-1.5 gap-1">
+                            {isInfoCollapsed ? (
+                                <ChevronRight className="h-3.5 w-3.5" />
+                            ) : (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                            )}
+                            <span className="text-xs font-medium text-muted-foreground">Info</span>
+                        </Button>
+                    </CollapsibleTrigger>
+                </div>
+
+                <CollapsibleContent>
+                    <div className="flex flex-wrap gap-1.5">
+                        <Link
+                            href={`/sites/${job.siteId}`}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 text-sm hover:bg-muted/50 transition-colors"
+                        >
+                            <MapPin className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground text-xs">Site:</span>
+                            <span className="font-semibold truncate max-w-[120px]">{job.site?.name ?? 'View'}</span>
+                        </Link>
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 text-sm">
+                            <Table2 className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground text-xs">Columns:</span>
+                            <span className="font-semibold">{columns?.length ?? 0}</span>
+                        </div>
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 text-sm">
+                            <Briefcase className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground text-xs">Drawings:</span>
+                            <span className="font-semibold">{drawings?.length ?? 0}</span>
+                        </div>
                     </div>
-                    <Link
-                        href={`/sites/${job.siteId}`}
-                        className="text-lg font-bold hover:underline truncate block"
-                    >
-                        {job.site?.name ?? 'View Site'}
-                    </Link>
-                </Card>
-                <Card className="p-3">
-                    <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-muted-foreground">Columns</span>
-                        <Table2 className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="text-lg font-bold">{columns?.length ?? 0}</div>
-                </Card>
-                <Card className="p-3">
-                    <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-muted-foreground">Drawings</span>
-                        <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="text-lg font-bold">{drawings?.length ?? 0}</div>
-                </Card>
-            </div>
+                </CollapsibleContent>
+            </Collapsible>
 
             {/* Custom Stat Cards */}
             {(columns?.length ?? 0) > 0 && (
