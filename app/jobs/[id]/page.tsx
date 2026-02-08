@@ -19,6 +19,7 @@ import {
     ChevronDown,
     ChevronRight,
     Info,
+    Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,7 @@ import { useDrawingColumns } from '@/hooks/use-drawing-columns';
 import { useDrawings, useCreateDrawing, useUpdateDrawing, useDeleteDrawing, useBulkCreateDrawings } from '@/hooks/use-drawings';
 import { JobForm } from '@/components/jobs/job-form';
 import { ColumnManager } from '@/components/drawings/column-manager';
+import { MaterialColumnManager } from '@/components/materials/material-column-manager';
 import { DrawingTable } from '@/components/drawings/drawing-table';
 import { DrawingForm } from '@/components/drawings/drawing-form';
 import { JobStatCards, StatCardConfigurator } from '@/components/jobs/stat-cards';
@@ -90,6 +92,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [isExcelUploadOpen, setIsExcelUploadOpen] = useState(false);
     const [editingDrawing, setEditingDrawing] = useState<Drawing | null>(null);
     const [deletingDrawing, setDeletingDrawing] = useState<Drawing | null>(null);
+    const [isMaterialColumnConfigOpen, setIsMaterialColumnConfigOpen] = useState(false);
     const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
 
     // Load info collapse state
@@ -222,6 +225,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                                 <Settings2 className="mr-2 h-4 w-4" />
                                 Configure Columns
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setIsMaterialColumnConfigOpen(true)}>
+                                <Package className="mr-2 h-4 w-4" />
+                                Configure Materials
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setIsStatConfigOpen(true)}>
                                 <BarChart3 className="mr-2 h-4 w-4" />
                                 Configure Stats
@@ -350,6 +357,21 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4">
                         <ColumnManager jobId={id} />
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Material Column Configuration Modal */}
+            <Dialog open={isMaterialColumnConfigOpen} onOpenChange={setIsMaterialColumnConfigOpen}>
+                <DialogContent className="max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+                    <DialogHeader className="flex-shrink-0">
+                        <DialogTitle>Material Column Configuration</DialogTitle>
+                        <DialogDescription>
+                            Define the structure for your material list
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4">
+                        <MaterialColumnManager jobId={id} />
                     </div>
                 </DialogContent>
             </Dialog>

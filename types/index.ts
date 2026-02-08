@@ -152,6 +152,41 @@ export interface CreateDrawingChangeHistoryDto {
     changedBy?: string;
 }
 
+// ===== Material Column =====
+export interface MaterialColumn {
+    id: string;
+    name: string;
+    type: ColumnType;
+    required: boolean;
+    order: number;
+    jobId: string;
+}
+
+export interface CreateMaterialColumnDto {
+    name: string;
+    type?: ColumnType;
+    required?: boolean;
+    order?: number;
+}
+
+export type UpdateMaterialColumnDto = Partial<CreateMaterialColumnDto>;
+
+// ===== Material =====
+export interface Material {
+    id: string;
+    data: Record<string, unknown>;
+    drawingId: string;
+    drawing?: Drawing;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateMaterialDto {
+    data: Record<string, unknown>;
+}
+
+export type UpdateMaterialDto = Partial<CreateMaterialDto>;
+
 // ===== API Response Types =====
 export interface ApiError {
     statusCode: number;

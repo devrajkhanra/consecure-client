@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { format } from 'date-fns';
-import { MoreHorizontal, Pencil, Trash2, Check, X, History } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Check, X, History, ChevronDown, ChevronRight, Package } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -20,6 +20,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { ColumnType, type Drawing, type DrawingColumn } from '@/types';
 import { DrawingHistoryDialog } from '@/components/drawings/change-history';
+import { MaterialTable } from '@/components/materials/material-table';
+import { useMaterialColumns } from '@/hooks/use-material-columns';
 
 interface DrawingTableProps {
     jobId: string;
@@ -32,11 +34,17 @@ interface DrawingTableProps {
 export function DrawingTable({ jobId, drawings, columns, onEdit, onDelete }: DrawingTableProps) {
     const [page, setPage] = useState(0);
     const [historyDrawingId, setHistoryDrawingId] = useState<string | null>(null);
+    const [expandedDrawingId, setExpandedDrawingId] = useState<string | null>(null);
+    const { data: materialColumns } = useMaterialColumns(jobId);
     const pageSize = 10;
 
     const sortedColumns = columns.slice().sort((a, b) => a.order - b.order);
     const paginatedDrawings = drawings.slice(page * pageSize, (page + 1) * pageSize);
     const totalPages = Math.ceil(drawings.length / pageSize);
+
+    const toggleRow = (drawingId: string) => {
+        setExpandedDrawingId(expandedDrawingId === drawingId ? null : drawingId);
+    };
 
     const renderCellValue = (drawing: Drawing, column: DrawingColumn) => {
         const value = drawing.data[column.name];
@@ -82,6 +90,7 @@ export function DrawingTable({ jobId, drawings, columns, onEdit, onDelete }: Dra
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[30px]"></TableHead>
                             {sortedColumns.map((column) => (
                                 <TableHead key={column.id}>
                                     {column.name}
@@ -96,45 +105,79 @@ export function DrawingTable({ jobId, drawings, columns, onEdit, onDelete }: Dra
                     <TableBody>
                         {paginatedDrawings.length > 0 ? (
                             paginatedDrawings.map((drawing) => (
-                                <TableRow key={drawing.id}>
-                                    {sortedColumns.map((column) => (
-                                        <TableCell key={column.id}>
-                                            {renderCellValue(drawing, column)}
+                                <Fragment key={drawing.id}>
+                                    <TableRow
+                                        className={expandedDrawingId === drawing.id ? "bg-muted/50" : ""}
+                                    >
+                                        <TableCell>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0"
+                                                onClick={() => toggleRow(drawing.id)}
+                                            >
+                                                {expandedDrawingId === drawing.id ? (
+                                                    <ChevronDown className="h-4 w-4" />
+                                                ) : (
+                                                    <ChevronRight className="h-4 w-4" />
+                                                )}
+                                            </Button>
                                         </TableCell>
-                                    ))}
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <span className="sr-only">Open menu</span>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => onEdit(drawing)}>
-                                                    <Pencil className="mr-2 h-4 w-4" />
-                                                    Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => setHistoryDrawingId(drawing.id)}>
-                                                    <History className="mr-2 h-4 w-4" />
-                                                    History
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    onClick={() => onDelete(drawing)}
-                                                    className="text-destructive focus:text-destructive"
-                                                >
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
+                                        {sortedColumns.map((column) => (
+                                            <TableCell key={column.id}>
+                                                {renderCellValue(drawing, column)}
+                                            </TableCell>
+                                        ))}
+                                        <TableCell>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                        <span className="sr-only">Open menu</span>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => toggleRow(drawing.id)}>
+                                                        <Package className="mr-2 h-4 w-4" />
+                                                        Materials
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onEdit(drawing)}>
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => setHistoryDrawingId(drawing.id)}>
+                                                        <History className="mr-2 h-4 w-4" />
+                                                        History
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => onDelete(drawing)}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                    {expandedDrawingId === drawing.id && (
+                                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                            <TableCell colSpan={sortedColumns.length + 2} className="p-4">
+                                                <div className="pl-8">
+                                                    <MaterialTable
+                                                        drawingId={drawing.id}
+                                                        columns={materialColumns ?? []}
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </Fragment>
                             ))
                         ) : (
                             <TableRow>
                                 <TableCell
-                                    colSpan={sortedColumns.length + 1}
+                                    colSpan={sortedColumns.length + 2}
                                     className="h-24 text-center"
                                 >
                                     No drawings found.
