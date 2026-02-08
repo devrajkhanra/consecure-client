@@ -1,9 +1,25 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Calculator, BarChart3, Filter, X, ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
+import { Plus, Trash2, BarChart3, Filter, X, ChevronDown, ChevronRight, Settings2, GripVertical, Layers } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
     Dialog,
@@ -57,11 +73,11 @@ export enum FilterOperator {
 const aggregationLabels: Record<AggregationType, string> = {
     [AggregationType.COUNT]: 'Count',
     [AggregationType.SUM]: 'Sum',
-    [AggregationType.AVERAGE]: 'Average',
-    [AggregationType.MIN]: 'Minimum',
-    [AggregationType.MAX]: 'Maximum',
-    [AggregationType.COUNT_TRUE]: 'Count (True)',
-    [AggregationType.COUNT_FALSE]: 'Count (False)',
+    [AggregationType.AVERAGE]: 'Avg',
+    [AggregationType.MIN]: 'Min',
+    [AggregationType.MAX]: 'Max',
+    [AggregationType.COUNT_TRUE]: '✓',
+    [AggregationType.COUNT_FALSE]: '✗',
 };
 
 const filterOperatorLabels: Record<FilterOperator, string> = {
@@ -70,8 +86,8 @@ const filterOperatorLabels: Record<FilterOperator, string> = {
     [FilterOperator.CONTAINS]: 'Contains',
     [FilterOperator.GREATER_THAN]: 'Greater Than',
     [FilterOperator.LESS_THAN]: 'Less Than',
-    [FilterOperator.GREATER_THAN_OR_EQUAL]: '≥ (Greater or Equal)',
-    [FilterOperator.LESS_THAN_OR_EQUAL]: '≤ (Less or Equal)',
+    [FilterOperator.GREATER_THAN_OR_EQUAL]: '≥',
+    [FilterOperator.LESS_THAN_OR_EQUAL]: '≤',
     [FilterOperator.IS_TRUE]: 'Is True',
     [FilterOperator.IS_FALSE]: 'Is False',
     [FilterOperator.IS_EMPTY]: 'Is Empty',
@@ -144,6 +160,14 @@ export interface StatCardConfig {
     columnId: string;
     aggregation: AggregationType;
     filters?: FilterCondition[];
+    groupId?: string; // Group ID for merged cards
+}
+
+// Group configuration
+export interface StatCardGroup {
+    id: string;
+    name: string;
+    cardIds: string[];
 }
 
 // Check if operator needs a value input
@@ -249,6 +273,81 @@ function getCollapseKey(jobId: string) {
     return `job-stats-collapsed-${jobId}`;
 }
 
+function getGroupsKey(jobId: string) {
+    return `job-stats-groups-${jobId}`;
+}
+
+// Draggable stat card item
+interface DraggableStatCardProps {
+    card: StatCardConfig;
+    value: string | number;
+    hasFilters: boolean;
+}
+
+function DraggableStatCard({ card, value, hasFilters }: DraggableStatCardProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: card.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border bg-muted/30 text-xs cursor-move select-none hover:bg-muted/50 transition-colors"
+            {...attributes}
+            {...listeners}
+        >
+            <GripVertical className="h-2.5 w-2.5 text-muted-foreground/50" />
+            {hasFilters && <Filter className="h-2 w-2 text-primary" />}
+            <span className="text-muted-foreground truncate max-w-[80px]">{card.title}:</span>
+            <span className="font-semibold">{value}</span>
+        </div>
+    );
+}
+
+// Grouped stat cards display
+interface StatCardGroupDisplayProps {
+    group: StatCardGroup;
+    cards: StatCardConfig[];
+    drawings: Drawing[];
+    columns: DrawingColumn[];
+}
+
+function StatCardGroupDisplay({ group, cards, drawings, columns }: StatCardGroupDisplayProps) {
+    const groupCards = cards.filter((c) => group.cardIds.includes(c.id));
+
+    const getColumn = (columnId: string) => columns.find((c) => c.id === columnId);
+
+    return (
+        <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md border-2 border-primary/20 bg-primary/5 text-xs">
+            <Layers className="h-3 w-3 text-primary/60 mr-0.5" />
+            <span className="text-muted-foreground font-medium">{group.name}:</span>
+            {groupCards.map((card, idx) => {
+                const column = getColumn(card.columnId);
+                if (!column) return null;
+                const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
+                return (
+                    <span key={card.id} className="flex items-center gap-0.5">
+                        {idx > 0 && <span className="text-muted-foreground/50">|</span>}
+                        <span className="font-semibold">{value}</span>
+                    </span>
+                );
+            })}
+        </div>
+    );
+}
+
 interface JobStatCardsProps {
     jobId: string;
     columns: DrawingColumn[];
@@ -258,7 +357,13 @@ interface JobStatCardsProps {
 
 export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: JobStatCardsProps) {
     const [cards, setCards] = useState<StatCardConfig[]>([]);
+    const [groups, setGroups] = useState<StatCardGroup[]>([]);
     const [isCollapsed, setIsCollapsed] = useState(false);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     // Load from local storage
     useEffect(() => {
@@ -270,10 +375,23 @@ export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: Job
                 setCards([]);
             }
         }
-        // Load collapse state
+        const savedGroups = localStorage.getItem(getGroupsKey(jobId));
+        if (savedGroups) {
+            try {
+                setGroups(JSON.parse(savedGroups));
+            } catch {
+                setGroups([]);
+            }
+        }
         const collapsed = localStorage.getItem(getCollapseKey(jobId));
         setIsCollapsed(collapsed === 'true');
     }, [jobId]);
+
+    // Save cards order
+    const saveCards = (newCards: StatCardConfig[]) => {
+        setCards(newCards);
+        localStorage.setItem(getStorageKey(jobId), JSON.stringify(newCards));
+    };
 
     // Save collapse state
     const toggleCollapse = () => {
@@ -282,70 +400,100 @@ export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: Job
         localStorage.setItem(getCollapseKey(jobId), String(newState));
     };
 
+    // Handle drag end for reordering
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            const oldIndex = cards.findIndex((c) => c.id === active.id);
+            const newIndex = cards.findIndex((c) => c.id === over.id);
+            const reordered = arrayMove(cards, oldIndex, newIndex);
+            saveCards(reordered);
+        }
+    };
+
     // Get column by ID
     const getColumn = (columnId: string) => columns.find((c) => c.id === columnId);
+
+    // Get ungrouped cards
+    const ungroupedCards = cards.filter((c) => !groups.some((g) => g.cardIds.includes(c.id)));
 
     // Don't render if no cards
     if (cards.length === 0) {
         return (
             <div
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed cursor-pointer hover:border-primary/50 transition-colors text-muted-foreground"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed cursor-pointer hover:border-primary/50 transition-colors text-muted-foreground"
                 onClick={onConfigureClick}
             >
-                <BarChart3 className="h-4 w-4" />
-                <span className="text-sm">Add stat cards to track metrics</span>
+                <BarChart3 className="h-3.5 w-3.5" />
+                <span className="text-xs">Add stat cards</span>
             </div>
         );
     }
 
     return (
         <Collapsible open={!isCollapsed} onOpenChange={() => toggleCollapse()}>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-1.5 mb-0.5">
                 <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 px-1.5 gap-1">
+                    <Button variant="ghost" size="sm" className="h-5 px-1 gap-0.5">
                         {isCollapsed ? (
-                            <ChevronRight className="h-3.5 w-3.5" />
+                            <ChevronRight className="h-3 w-3" />
                         ) : (
-                            <ChevronDown className="h-3.5 w-3.5" />
+                            <ChevronDown className="h-3 w-3" />
                         )}
-                        <span className="text-xs font-medium text-muted-foreground">Stats</span>
-                        <Badge variant="secondary" className="h-4 px-1 text-[10px]">{cards.length}</Badge>
+                        <span className="text-[10px] font-medium text-muted-foreground">Stats</span>
+                        <Badge variant="secondary" className="h-3.5 px-1 text-[9px] ml-0.5">{cards.length}</Badge>
                     </Button>
                 </CollapsibleTrigger>
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-1.5"
+                    className="h-5 px-1"
                     onClick={(e) => {
                         e.stopPropagation();
                         onConfigureClick();
                     }}
                 >
-                    <Settings2 className="h-3 w-3" />
+                    <Settings2 className="h-2.5 w-2.5" />
                 </Button>
             </div>
 
             <CollapsibleContent>
-                <div className="flex flex-wrap gap-1.5">
-                    {cards.map((card) => {
-                        const column = getColumn(card.columnId);
-                        if (!column) return null;
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext items={ungroupedCards.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+                        <div className="flex flex-wrap gap-1">
+                            {/* Render groups first */}
+                            {groups.map((group) => (
+                                <StatCardGroupDisplay
+                                    key={group.id}
+                                    group={group}
+                                    cards={cards}
+                                    drawings={drawings}
+                                    columns={columns}
+                                />
+                            ))}
 
-                        const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
-                        const hasFilters = card.filters && card.filters.length > 0;
-
-                        return (
-                            <div
-                                key={card.id}
-                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 text-sm"
-                            >
-                                {hasFilters && <Filter className="h-2.5 w-2.5 text-primary" />}
-                                <span className="text-muted-foreground text-xs truncate max-w-[100px]">{card.title}:</span>
-                                <span className="font-semibold">{value}</span>
-                            </div>
-                        );
-                    })}
-                </div>
+                            {/* Render ungrouped draggable cards */}
+                            {ungroupedCards.map((card) => {
+                                const column = getColumn(card.columnId);
+                                if (!column) return null;
+                                const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
+                                const hasFilters = card.filters && card.filters.length > 0;
+                                return (
+                                    <DraggableStatCard
+                                        key={card.id}
+                                        card={card}
+                                        value={value}
+                                        hasFilters={hasFilters}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </SortableContext>
+                </DndContext>
             </CollapsibleContent>
         </Collapsible>
     );
@@ -377,7 +525,6 @@ function FilterBuilder({ columns, filters, onChange }: FilterBuilderProps) {
         const newFilters = [...filters];
         newFilters[index] = { ...newFilters[index], ...updates };
 
-        // Reset operator and value when column changes
         if (updates.columnId) {
             const column = columns.find((c) => c.id === updates.columnId);
             if (column) {
@@ -395,19 +542,17 @@ function FilterBuilder({ columns, filters, onChange }: FilterBuilderProps) {
     };
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-2">
             <div className="flex items-center justify-between">
-                <Label>Filters (Optional)</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addFilter}>
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Filter
+                <Label className="text-xs">Filters</Label>
+                <Button type="button" variant="outline" size="sm" className="h-6 text-xs" onClick={addFilter}>
+                    <Plus className="h-2.5 w-2.5 mr-1" />
+                    Add
                 </Button>
             </div>
 
             {filters.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                    No filters applied. Add filters to aggregate specific data.
-                </p>
+                <p className="text-xs text-muted-foreground">No filters</p>
             )}
 
             {filters.map((filter, index) => {
@@ -416,17 +561,17 @@ function FilterBuilder({ columns, filters, onChange }: FilterBuilderProps) {
                 const needsValue = operatorNeedsValue(filter.operator);
 
                 return (
-                    <div key={index} className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30">
+                    <div key={index} className="flex items-center gap-1.5 p-1.5 rounded border bg-muted/30">
                         <Select
                             value={filter.columnId}
                             onValueChange={(v) => updateFilter(index, { columnId: v })}
                         >
-                            <SelectTrigger className="w-[140px]">
+                            <SelectTrigger className="h-7 w-[100px] text-xs">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 {columns.map((col) => (
-                                    <SelectItem key={col.id} value={col.id}>
+                                    <SelectItem key={col.id} value={col.id} className="text-xs">
                                         {col.name}
                                     </SelectItem>
                                 ))}
@@ -437,12 +582,12 @@ function FilterBuilder({ columns, filters, onChange }: FilterBuilderProps) {
                             value={filter.operator}
                             onValueChange={(v) => updateFilter(index, { operator: v as FilterOperator })}
                         >
-                            <SelectTrigger className="w-[140px]">
+                            <SelectTrigger className="h-7 w-[90px] text-xs">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 {operators.map((op) => (
-                                    <SelectItem key={op} value={op}>
+                                    <SelectItem key={op} value={op} className="text-xs">
                                         {filterOperatorLabels[op]}
                                     </SelectItem>
                                 ))}
@@ -454,7 +599,7 @@ function FilterBuilder({ columns, filters, onChange }: FilterBuilderProps) {
                                 value={filter.value ?? ''}
                                 onChange={(e) => updateFilter(index, { value: e.target.value })}
                                 placeholder="Value"
-                                className="w-[120px]"
+                                className="h-7 w-[80px] text-xs"
                             />
                         )}
 
@@ -463,9 +608,9 @@ function FilterBuilder({ columns, filters, onChange }: FilterBuilderProps) {
                             variant="ghost"
                             size="icon"
                             onClick={() => removeFilter(index)}
-                            className="text-destructive hover:text-destructive flex-shrink-0"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
                         >
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3" />
                         </Button>
                     </div>
                 );
@@ -490,10 +635,18 @@ export function StatCardConfigurator({
     onOpenChange,
 }: StatCardConfiguratorProps) {
     const [cards, setCards] = useState<StatCardConfig[]>([]);
+    const [groups, setGroups] = useState<StatCardGroup[]>([]);
     const [selectedColumn, setSelectedColumn] = useState<string>('');
     const [selectedAggregation, setSelectedAggregation] = useState<AggregationType>(AggregationType.COUNT);
     const [cardTitle, setCardTitle] = useState('');
     const [filters, setFilters] = useState<FilterCondition[]>([]);
+    const [groupName, setGroupName] = useState('');
+    const [selectedCardsForGroup, setSelectedCardsForGroup] = useState<string[]>([]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     // Load from local storage
     useEffect(() => {
@@ -505,22 +658,34 @@ export function StatCardConfigurator({
                 setCards([]);
             }
         }
+        const savedGroups = localStorage.getItem(getGroupsKey(jobId));
+        if (savedGroups) {
+            try {
+                setGroups(JSON.parse(savedGroups));
+            } catch {
+                setGroups([]);
+            }
+        }
     }, [jobId]);
 
-    // Save to local storage whenever cards change
+    // Save functions
     const saveCards = (newCards: StatCardConfig[]) => {
         setCards(newCards);
         localStorage.setItem(getStorageKey(jobId), JSON.stringify(newCards));
     };
 
-    // Get available aggregations for selected column
+    const saveGroups = (newGroups: StatCardGroup[]) => {
+        setGroups(newGroups);
+        localStorage.setItem(getGroupsKey(jobId), JSON.stringify(newGroups));
+    };
+
+    // Available aggregations for selected column
     const availableAggregations = useMemo(() => {
         const column = columns.find((c) => c.id === selectedColumn);
         if (!column) return [AggregationType.COUNT];
         return getAggregationsForType(column.type);
     }, [selectedColumn, columns]);
 
-    // Reset aggregation when column changes
     useEffect(() => {
         if (availableAggregations.length > 0 && !availableAggregations.includes(selectedAggregation)) {
             setSelectedAggregation(availableAggregations[0]);
@@ -529,20 +694,18 @@ export function StatCardConfigurator({
 
     const handleAddCard = () => {
         if (!selectedColumn) return;
-
         const column = columns.find((c) => c.id === selectedColumn);
         if (!column) return;
 
-        // Build title with filter info
-        let defaultTitle = `${aggregationLabels[selectedAggregation]} of ${column.name}`;
+        let defaultTitle = `${aggregationLabels[selectedAggregation]} ${column.name}`;
         if (filters.length > 0) {
             const filterDesc = filters
                 .map((f) => {
                     const col = columns.find((c) => c.id === f.columnId);
-                    return `${col?.name ?? ''} ${filterOperatorLabels[f.operator].toLowerCase()}${f.value ? ` "${f.value}"` : ''}`;
+                    return col?.name ?? '';
                 })
-                .join(', ');
-            defaultTitle = `${aggregationLabels[selectedAggregation]} where ${filterDesc}`;
+                .join(',');
+            defaultTitle = `${aggregationLabels[selectedAggregation]} (${filterDesc})`;
         }
 
         const newCard: StatCardConfig = {
@@ -561,20 +724,51 @@ export function StatCardConfigurator({
 
     const handleRemoveCard = (cardId: string) => {
         saveCards(cards.filter((c) => c.id !== cardId));
+        // Also remove from any groups
+        const newGroups = groups.map((g) => ({
+            ...g,
+            cardIds: g.cardIds.filter((id) => id !== cardId),
+        })).filter((g) => g.cardIds.length > 0);
+        saveGroups(newGroups);
+    };
+
+    const handleCreateGroup = () => {
+        if (!groupName || selectedCardsForGroup.length < 2) return;
+
+        const newGroup: StatCardGroup = {
+            id: crypto.randomUUID(),
+            name: groupName,
+            cardIds: selectedCardsForGroup,
+        };
+
+        saveGroups([...groups, newGroup]);
+        setGroupName('');
+        setSelectedCardsForGroup([]);
+    };
+
+    const handleRemoveGroup = (groupId: string) => {
+        saveGroups(groups.filter((g) => g.id !== groupId));
+    };
+
+    const toggleCardSelection = (cardId: string) => {
+        setSelectedCardsForGroup((prev) =>
+            prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
+        );
+    };
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            const oldIndex = cards.findIndex((c) => c.id === active.id);
+            const newIndex = cards.findIndex((c) => c.id === over.id);
+            saveCards(arrayMove(cards, oldIndex, newIndex));
+        }
     };
 
     const getColumn = (columnId: string) => columns.find((c) => c.id === columnId);
 
-    // Get filter summary for display
-    const getFilterSummary = (cardFilters: FilterCondition[] | undefined) => {
-        if (!cardFilters || cardFilters.length === 0) return null;
-        return cardFilters
-            .map((f) => {
-                const col = columns.find((c) => c.id === f.columnId);
-                return `${col?.name ?? '?'}`;
-            })
-            .join(', ');
-    };
+    // Cards not in any group
+    const ungroupedCards = cards.filter((c) => !groups.some((g) => g.cardIds.includes(c.id)));
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -582,103 +776,142 @@ export function StatCardConfigurator({
                 <DialogHeader className="flex-shrink-0">
                     <DialogTitle>Configure Stat Cards</DialogTitle>
                     <DialogDescription>
-                        Add stat cards with aggregations and optional filters to analyze your drawing data
+                        Drag cards to reorder. Group similar cards together for compact display.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto space-y-6 py-4">
-                    {/* Current Cards */}
+                <div className="flex-1 overflow-y-auto space-y-4 py-3">
+                    {/* Current Cards - Draggable */}
                     {cards.length > 0 && (
-                        <div className="space-y-3">
-                            <Label>Current Cards</Label>
-                            {cards.map((card) => {
-                                const column = getColumn(card.columnId);
-                                const filterSummary = getFilterSummary(card.filters);
-                                return (
-                                    <div
-                                        key={card.id}
-                                        className="flex items-center justify-between rounded-lg border p-3"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                                            <div>
-                                                <p className="font-medium">{card.title}</p>
-                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                    <span>{aggregationLabels[card.aggregation]} of {column?.name ?? 'Unknown'}</span>
-                                                    {filterSummary && (
-                                                        <Badge variant="secondary" className="text-xs">
-                                                            <Filter className="h-2 w-2 mr-1" />
-                                                            {filterSummary}
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs">Cards (drag to reorder)</Label>
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext items={cards.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {cards.map((card) => {
+                                            const column = getColumn(card.columnId);
+                                            const value = column
+                                                ? calculateAggregation(drawings, column, card.aggregation, card.filters, columns)
+                                                : '-';
+                                            const isSelected = selectedCardsForGroup.includes(card.id);
+                                            const isInGroup = groups.some((g) => g.cardIds.includes(card.id));
+
+                                            return (
+                                                <DraggableCardItem
+                                                    key={card.id}
+                                                    card={card}
+                                                    value={value}
+                                                    isSelected={isSelected}
+                                                    isInGroup={isInGroup}
+                                                    onToggleSelect={() => toggleCardSelection(card.id)}
+                                                    onRemove={() => handleRemoveCard(card.id)}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                </SortableContext>
+                            </DndContext>
+                        </div>
+                    )}
+
+                    {/* Groups */}
+                    {groups.length > 0 && (
+                        <div className="space-y-2">
+                            <Label className="text-xs">Groups</Label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {groups.map((group) => (
+                                    <div key={group.id} className="flex items-center gap-1 px-2 py-1 rounded border-2 border-primary/30 bg-primary/10 text-xs">
+                                        <Layers className="h-3 w-3 text-primary" />
+                                        <span className="font-medium">{group.name}</span>
+                                        <Badge variant="secondary" className="h-4 px-1 text-[10px]">{group.cardIds.length}</Badge>
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => handleRemoveCard(card.id)}
-                                            className="text-destructive hover:text-destructive"
+                                            className="h-4 w-4 text-destructive hover:text-destructive"
+                                            onClick={() => handleRemoveGroup(group.id)}
                                         >
-                                            <Trash2 className="h-4 w-4" />
+                                            <X className="h-2.5 w-2.5" />
                                         </Button>
                                     </div>
-                                );
-                            })}
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Create Group */}
+                    {ungroupedCards.length >= 2 && (
+                        <div className="space-y-2 pt-2 border-t">
+                            <Label className="text-xs">Create Group (select 2+ cards above)</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={groupName}
+                                    onChange={(e) => setGroupName(e.target.value)}
+                                    placeholder="Group name"
+                                    className="h-7 text-xs flex-1"
+                                />
+                                <Button
+                                    onClick={handleCreateGroup}
+                                    disabled={!groupName || selectedCardsForGroup.length < 2}
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                >
+                                    <Layers className="h-3 w-3 mr-1" />
+                                    Group ({selectedCardsForGroup.length})
+                                </Button>
+                            </div>
                         </div>
                     )}
 
                     {/* Add New Card */}
-                    <div className="space-y-4 pt-4 border-t">
-                        <Label>Add New Card</Label>
+                    <div className="space-y-3 pt-3 border-t">
+                        <Label className="text-xs">Add New Card</Label>
 
                         {columns.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                No columns configured. Add columns first to create stat cards.
-                            </p>
+                            <p className="text-xs text-muted-foreground">No columns. Add columns first.</p>
                         ) : (
                             <>
-                                <div className="space-y-2">
-                                    <Label htmlFor="column">Aggregate Column</Label>
-                                    <Select value={selectedColumn} onValueChange={setSelectedColumn}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a column to aggregate" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {columns.map((column) => (
-                                                <SelectItem key={column.id} value={column.id}>
-                                                    <div className="flex items-center gap-2">
-                                                        {column.name}
-                                                        <Badge variant="outline" className="text-xs">
-                                                            {column.type}
-                                                        </Badge>
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {selectedColumn && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="aggregation">Aggregation Type</Label>
-                                        <Select
-                                            value={selectedAggregation}
-                                            onValueChange={(v) => setSelectedAggregation(v as AggregationType)}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px] text-muted-foreground">Column</Label>
+                                        <Select value={selectedColumn} onValueChange={setSelectedColumn}>
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue placeholder="Select column" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {availableAggregations.map((agg) => (
-                                                    <SelectItem key={agg} value={agg}>
-                                                        {aggregationLabels[agg]}
+                                                {columns.map((column) => (
+                                                    <SelectItem key={column.id} value={column.id} className="text-xs">
+                                                        {column.name}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                )}
+
+                                    {selectedColumn && (
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px] text-muted-foreground">Aggregation</Label>
+                                            <Select
+                                                value={selectedAggregation}
+                                                onValueChange={(v) => setSelectedAggregation(v as AggregationType)}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {availableAggregations.map((agg) => (
+                                                        <SelectItem key={agg} value={agg} className="text-xs">
+                                                            {aggregationLabels[agg]}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+                                </div>
 
                                 {selectedColumn && (
                                     <FilterBuilder
@@ -689,23 +922,21 @@ export function StatCardConfigurator({
                                 )}
 
                                 {selectedColumn && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="title">Card Title (Optional)</Label>
-                                        <Input
-                                            id="title"
-                                            value={cardTitle}
-                                            onChange={(e) => setCardTitle(e.target.value)}
-                                            placeholder="Auto-generated if empty"
-                                        />
-                                    </div>
+                                    <Input
+                                        value={cardTitle}
+                                        onChange={(e) => setCardTitle(e.target.value)}
+                                        placeholder="Custom title (optional)"
+                                        className="h-8 text-xs"
+                                    />
                                 )}
 
                                 <Button
                                     onClick={handleAddCard}
                                     disabled={!selectedColumn}
-                                    className="w-full"
+                                    size="sm"
+                                    className="w-full h-8 text-xs"
                                 >
-                                    <Plus className="mr-2 h-4 w-4" />
+                                    <Plus className="mr-1 h-3 w-3" />
                                     Add Card
                                 </Button>
                             </>
@@ -714,5 +945,62 @@ export function StatCardConfigurator({
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+// Draggable card item for configurator
+interface DraggableCardItemProps {
+    card: StatCardConfig;
+    value: string | number;
+    isSelected: boolean;
+    isInGroup: boolean;
+    onToggleSelect: () => void;
+    onRemove: () => void;
+}
+
+function DraggableCardItem({ card, value, isSelected, isInGroup, onToggleSelect, onRemove }: DraggableCardItemProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: card.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`inline-flex items-center gap-1 px-1.5 py-1 rounded border text-xs transition-all ${isSelected ? 'border-primary bg-primary/10' : isInGroup ? 'border-primary/30 bg-primary/5' : 'bg-muted/30'
+                }`}
+        >
+            <div className="cursor-move" {...attributes} {...listeners}>
+                <GripVertical className="h-3 w-3 text-muted-foreground/50" />
+            </div>
+            <button
+                onClick={onToggleSelect}
+                disabled={isInGroup}
+                className={`flex items-center gap-1 ${isInGroup ? 'opacity-50' : 'hover:text-primary'}`}
+            >
+                {card.filters && card.filters.length > 0 && <Filter className="h-2 w-2 text-primary" />}
+                <span className="truncate max-w-[80px]">{card.title}</span>
+                <span className="font-semibold">{value}</span>
+            </button>
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 text-destructive hover:text-destructive"
+                onClick={onRemove}
+            >
+                <Trash2 className="h-2.5 w-2.5" />
+            </Button>
+        </div>
     );
 }
