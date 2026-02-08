@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Hash, Calculator, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, Calculator, BarChart3, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
     Dialog,
@@ -34,6 +34,21 @@ export enum AggregationType {
     COUNT_FALSE = 'COUNT_FALSE',
 }
 
+// Filter operators
+export enum FilterOperator {
+    EQUALS = 'EQUALS',
+    NOT_EQUALS = 'NOT_EQUALS',
+    CONTAINS = 'CONTAINS',
+    GREATER_THAN = 'GREATER_THAN',
+    LESS_THAN = 'LESS_THAN',
+    GREATER_THAN_OR_EQUAL = 'GREATER_THAN_OR_EQUAL',
+    LESS_THAN_OR_EQUAL = 'LESS_THAN_OR_EQUAL',
+    IS_TRUE = 'IS_TRUE',
+    IS_FALSE = 'IS_FALSE',
+    IS_EMPTY = 'IS_EMPTY',
+    IS_NOT_EMPTY = 'IS_NOT_EMPTY',
+}
+
 const aggregationLabels: Record<AggregationType, string> = {
     [AggregationType.COUNT]: 'Count',
     [AggregationType.SUM]: 'Sum',
@@ -43,6 +58,58 @@ const aggregationLabels: Record<AggregationType, string> = {
     [AggregationType.COUNT_TRUE]: 'Count (True)',
     [AggregationType.COUNT_FALSE]: 'Count (False)',
 };
+
+const filterOperatorLabels: Record<FilterOperator, string> = {
+    [FilterOperator.EQUALS]: 'Equals',
+    [FilterOperator.NOT_EQUALS]: 'Not Equals',
+    [FilterOperator.CONTAINS]: 'Contains',
+    [FilterOperator.GREATER_THAN]: 'Greater Than',
+    [FilterOperator.LESS_THAN]: 'Less Than',
+    [FilterOperator.GREATER_THAN_OR_EQUAL]: '≥ (Greater or Equal)',
+    [FilterOperator.LESS_THAN_OR_EQUAL]: '≤ (Less or Equal)',
+    [FilterOperator.IS_TRUE]: 'Is True',
+    [FilterOperator.IS_FALSE]: 'Is False',
+    [FilterOperator.IS_EMPTY]: 'Is Empty',
+    [FilterOperator.IS_NOT_EMPTY]: 'Is Not Empty',
+};
+
+// Get available operators for a column type
+function getOperatorsForType(type: ColumnType): FilterOperator[] {
+    switch (type) {
+        case ColumnType.NUMBER:
+            return [
+                FilterOperator.EQUALS,
+                FilterOperator.NOT_EQUALS,
+                FilterOperator.GREATER_THAN,
+                FilterOperator.LESS_THAN,
+                FilterOperator.GREATER_THAN_OR_EQUAL,
+                FilterOperator.LESS_THAN_OR_EQUAL,
+                FilterOperator.IS_EMPTY,
+                FilterOperator.IS_NOT_EMPTY,
+            ];
+        case ColumnType.BOOLEAN:
+            return [FilterOperator.IS_TRUE, FilterOperator.IS_FALSE];
+        case ColumnType.TEXT:
+            return [
+                FilterOperator.EQUALS,
+                FilterOperator.NOT_EQUALS,
+                FilterOperator.CONTAINS,
+                FilterOperator.IS_EMPTY,
+                FilterOperator.IS_NOT_EMPTY,
+            ];
+        case ColumnType.DATE:
+            return [
+                FilterOperator.EQUALS,
+                FilterOperator.NOT_EQUALS,
+                FilterOperator.GREATER_THAN,
+                FilterOperator.LESS_THAN,
+                FilterOperator.IS_EMPTY,
+                FilterOperator.IS_NOT_EMPTY,
+            ];
+        default:
+            return [FilterOperator.EQUALS, FilterOperator.NOT_EQUALS];
+    }
+}
 
 // Get available aggregations for a column type
 function getAggregationsForType(type: ColumnType): AggregationType[] {
@@ -58,21 +125,84 @@ function getAggregationsForType(type: ColumnType): AggregationType[] {
     }
 }
 
+// Filter condition type
+export interface FilterCondition {
+    columnId: string;
+    operator: FilterOperator;
+    value?: string;
+}
+
 // Stat card configuration
 export interface StatCardConfig {
     id: string;
     title: string;
     columnId: string;
     aggregation: AggregationType;
+    filters?: FilterCondition[];
+}
+
+// Check if operator needs a value input
+function operatorNeedsValue(operator: FilterOperator): boolean {
+    return ![
+        FilterOperator.IS_TRUE,
+        FilterOperator.IS_FALSE,
+        FilterOperator.IS_EMPTY,
+        FilterOperator.IS_NOT_EMPTY,
+    ].includes(operator);
+}
+
+// Apply filter to a single drawing
+function matchesFilter(drawing: Drawing, filter: FilterCondition, columns: DrawingColumn[]): boolean {
+    const column = columns.find((c) => c.id === filter.columnId);
+    if (!column) return true;
+
+    const value = drawing.data[column.name];
+    const filterValue = filter.value ?? '';
+
+    switch (filter.operator) {
+        case FilterOperator.EQUALS:
+            return String(value ?? '').toLowerCase() === filterValue.toLowerCase();
+        case FilterOperator.NOT_EQUALS:
+            return String(value ?? '').toLowerCase() !== filterValue.toLowerCase();
+        case FilterOperator.CONTAINS:
+            return String(value ?? '').toLowerCase().includes(filterValue.toLowerCase());
+        case FilterOperator.GREATER_THAN:
+            return Number(value) > Number(filterValue);
+        case FilterOperator.LESS_THAN:
+            return Number(value) < Number(filterValue);
+        case FilterOperator.GREATER_THAN_OR_EQUAL:
+            return Number(value) >= Number(filterValue);
+        case FilterOperator.LESS_THAN_OR_EQUAL:
+            return Number(value) <= Number(filterValue);
+        case FilterOperator.IS_TRUE:
+            return value === true;
+        case FilterOperator.IS_FALSE:
+            return value === false;
+        case FilterOperator.IS_EMPTY:
+            return value === undefined || value === null || value === '';
+        case FilterOperator.IS_NOT_EMPTY:
+            return value !== undefined && value !== null && value !== '';
+        default:
+            return true;
+    }
+}
+
+// Filter drawings based on conditions
+function filterDrawings(drawings: Drawing[], filters: FilterCondition[], columns: DrawingColumn[]): Drawing[] {
+    if (!filters || filters.length === 0) return drawings;
+    return drawings.filter((drawing) => filters.every((filter) => matchesFilter(drawing, filter, columns)));
 }
 
 // Calculate aggregation value
 function calculateAggregation(
     drawings: Drawing[],
     column: DrawingColumn,
-    aggregation: AggregationType
+    aggregation: AggregationType,
+    filters: FilterCondition[] | undefined,
+    columns: DrawingColumn[]
 ): string | number {
-    const values = drawings
+    const filteredDrawings = filterDrawings(drawings, filters ?? [], columns);
+    const values = filteredDrawings
         .map((d) => d.data[column.name])
         .filter((v) => v !== undefined && v !== null && v !== '');
 
@@ -141,13 +271,17 @@ export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: Job
                 const column = getColumn(card.columnId);
                 if (!column) return null;
 
-                const value = calculateAggregation(drawings, column, card.aggregation);
+                const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
+                const hasFilters = card.filters && card.filters.length > 0;
 
                 return (
                     <Card key={card.id} className="p-3">
                         <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-medium text-muted-foreground truncate">{card.title}</span>
-                            <Calculator className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                                {hasFilters && <Filter className="h-3 w-3 text-primary" />}
+                                <Calculator className="h-4 w-4 text-muted-foreground" />
+                            </div>
                         </div>
                         <div className="text-lg font-bold">{value}</div>
                     </Card>
@@ -164,6 +298,129 @@ export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: Job
                     <span className="text-sm">Add Stat</span>
                 </div>
             </Card>
+        </div>
+    );
+}
+
+// Filter builder component
+interface FilterBuilderProps {
+    columns: DrawingColumn[];
+    filters: FilterCondition[];
+    onChange: (filters: FilterCondition[]) => void;
+}
+
+function FilterBuilder({ columns, filters, onChange }: FilterBuilderProps) {
+    const addFilter = () => {
+        if (columns.length === 0) return;
+        const firstColumn = columns[0];
+        const operators = getOperatorsForType(firstColumn.type);
+        onChange([
+            ...filters,
+            {
+                columnId: firstColumn.id,
+                operator: operators[0],
+                value: '',
+            },
+        ]);
+    };
+
+    const updateFilter = (index: number, updates: Partial<FilterCondition>) => {
+        const newFilters = [...filters];
+        newFilters[index] = { ...newFilters[index], ...updates };
+
+        // Reset operator and value when column changes
+        if (updates.columnId) {
+            const column = columns.find((c) => c.id === updates.columnId);
+            if (column) {
+                const operators = getOperatorsForType(column.type);
+                newFilters[index].operator = operators[0];
+                newFilters[index].value = '';
+            }
+        }
+
+        onChange(newFilters);
+    };
+
+    const removeFilter = (index: number) => {
+        onChange(filters.filter((_, i) => i !== index));
+    };
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between">
+                <Label>Filters (Optional)</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addFilter}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Filter
+                </Button>
+            </div>
+
+            {filters.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                    No filters applied. Add filters to aggregate specific data.
+                </p>
+            )}
+
+            {filters.map((filter, index) => {
+                const column = columns.find((c) => c.id === filter.columnId);
+                const operators = column ? getOperatorsForType(column.type) : [];
+                const needsValue = operatorNeedsValue(filter.operator);
+
+                return (
+                    <div key={index} className="flex items-center gap-2 p-2 rounded-lg border bg-muted/30">
+                        <Select
+                            value={filter.columnId}
+                            onValueChange={(v) => updateFilter(index, { columnId: v })}
+                        >
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {columns.map((col) => (
+                                    <SelectItem key={col.id} value={col.id}>
+                                        {col.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Select
+                            value={filter.operator}
+                            onValueChange={(v) => updateFilter(index, { operator: v as FilterOperator })}
+                        >
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {operators.map((op) => (
+                                    <SelectItem key={op} value={op}>
+                                        {filterOperatorLabels[op]}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        {needsValue && (
+                            <Input
+                                value={filter.value ?? ''}
+                                onChange={(e) => updateFilter(index, { value: e.target.value })}
+                                placeholder="Value"
+                                className="w-[120px]"
+                            />
+                        )}
+
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeFilter(index)}
+                            className="text-destructive hover:text-destructive flex-shrink-0"
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                );
+            })}
         </div>
     );
 }
@@ -187,6 +444,7 @@ export function StatCardConfigurator({
     const [selectedColumn, setSelectedColumn] = useState<string>('');
     const [selectedAggregation, setSelectedAggregation] = useState<AggregationType>(AggregationType.COUNT);
     const [cardTitle, setCardTitle] = useState('');
+    const [filters, setFilters] = useState<FilterCondition[]>([]);
 
     // Load from local storage
     useEffect(() => {
@@ -226,16 +484,30 @@ export function StatCardConfigurator({
         const column = columns.find((c) => c.id === selectedColumn);
         if (!column) return;
 
+        // Build title with filter info
+        let defaultTitle = `${aggregationLabels[selectedAggregation]} of ${column.name}`;
+        if (filters.length > 0) {
+            const filterDesc = filters
+                .map((f) => {
+                    const col = columns.find((c) => c.id === f.columnId);
+                    return `${col?.name ?? ''} ${filterOperatorLabels[f.operator].toLowerCase()}${f.value ? ` "${f.value}"` : ''}`;
+                })
+                .join(', ');
+            defaultTitle = `${aggregationLabels[selectedAggregation]} where ${filterDesc}`;
+        }
+
         const newCard: StatCardConfig = {
             id: crypto.randomUUID(),
-            title: cardTitle || `${aggregationLabels[selectedAggregation]} of ${column.name}`,
+            title: cardTitle || defaultTitle,
             columnId: selectedColumn,
             aggregation: selectedAggregation,
+            filters: filters.length > 0 ? [...filters] : undefined,
         };
 
         saveCards([...cards, newCard]);
         setCardTitle('');
         setSelectedColumn('');
+        setFilters([]);
     };
 
     const handleRemoveCard = (cardId: string) => {
@@ -244,13 +516,24 @@ export function StatCardConfigurator({
 
     const getColumn = (columnId: string) => columns.find((c) => c.id === columnId);
 
+    // Get filter summary for display
+    const getFilterSummary = (cardFilters: FilterCondition[] | undefined) => {
+        if (!cardFilters || cardFilters.length === 0) return null;
+        return cardFilters
+            .map((f) => {
+                const col = columns.find((c) => c.id === f.columnId);
+                return `${col?.name ?? '?'}`;
+            })
+            .join(', ');
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
                 <DialogHeader className="flex-shrink-0">
                     <DialogTitle>Configure Stat Cards</DialogTitle>
                     <DialogDescription>
-                        Add or remove stat cards that show aggregations of your drawing data
+                        Add stat cards with aggregations and optional filters to analyze your drawing data
                     </DialogDescription>
                 </DialogHeader>
 
@@ -261,6 +544,7 @@ export function StatCardConfigurator({
                             <Label>Current Cards</Label>
                             {cards.map((card) => {
                                 const column = getColumn(card.columnId);
+                                const filterSummary = getFilterSummary(card.filters);
                                 return (
                                     <div
                                         key={card.id}
@@ -270,9 +554,15 @@ export function StatCardConfigurator({
                                             <BarChart3 className="h-4 w-4 text-muted-foreground" />
                                             <div>
                                                 <p className="font-medium">{card.title}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {aggregationLabels[card.aggregation]} of {column?.name ?? 'Unknown'}
-                                                </p>
+                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                    <span>{aggregationLabels[card.aggregation]} of {column?.name ?? 'Unknown'}</span>
+                                                    {filterSummary && (
+                                                        <Badge variant="secondary" className="text-xs">
+                                                            <Filter className="h-2 w-2 mr-1" />
+                                                            {filterSummary}
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         <Button
@@ -300,10 +590,10 @@ export function StatCardConfigurator({
                         ) : (
                             <>
                                 <div className="space-y-2">
-                                    <Label htmlFor="column">Column</Label>
+                                    <Label htmlFor="column">Aggregate Column</Label>
                                     <Select value={selectedColumn} onValueChange={setSelectedColumn}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select a column" />
+                                            <SelectValue placeholder="Select a column to aggregate" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {columns.map((column) => (
@@ -322,7 +612,7 @@ export function StatCardConfigurator({
 
                                 {selectedColumn && (
                                     <div className="space-y-2">
-                                        <Label htmlFor="aggregation">Aggregation</Label>
+                                        <Label htmlFor="aggregation">Aggregation Type</Label>
                                         <Select
                                             value={selectedAggregation}
                                             onValueChange={(v) => setSelectedAggregation(v as AggregationType)}
@@ -342,13 +632,21 @@ export function StatCardConfigurator({
                                 )}
 
                                 {selectedColumn && (
+                                    <FilterBuilder
+                                        columns={columns}
+                                        filters={filters}
+                                        onChange={setFilters}
+                                    />
+                                )}
+
+                                {selectedColumn && (
                                     <div className="space-y-2">
                                         <Label htmlFor="title">Card Title (Optional)</Label>
                                         <Input
                                             id="title"
                                             value={cardTitle}
                                             onChange={(e) => setCardTitle(e.target.value)}
-                                            placeholder={`${aggregationLabels[selectedAggregation]} of ${columns.find((c) => c.id === selectedColumn)?.name ?? ''}`}
+                                            placeholder="Auto-generated if empty"
                                         />
                                     </div>
                                 )}
