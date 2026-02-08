@@ -304,14 +304,14 @@ function DraggableStatCard({ card, value, hasFilters }: DraggableStatCardProps) 
         <div
             ref={setNodeRef}
             style={style}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border bg-muted/30 text-xs cursor-move select-none hover:bg-muted/50 transition-colors"
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-card text-xs cursor-move select-none hover:bg-accent hover:text-accent-foreground transition-colors shadow-sm"
             {...attributes}
             {...listeners}
         >
-            <GripVertical className="h-2.5 w-2.5 text-muted-foreground/50" />
-            {hasFilters && <Filter className="h-2 w-2 text-primary" />}
-            <span className="text-muted-foreground truncate max-w-[80px]">{card.title}:</span>
-            <span className="font-semibold">{value}</span>
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+            {hasFilters && <Filter className="h-3 w-3 text-primary" />}
+            <span className="text-muted-foreground font-medium">{card.title}:</span>
+            <span className="font-bold">{value}</span>
         </div>
     );
 }
@@ -330,18 +330,20 @@ function StatCardGroupDisplay({ group, cards, drawings, columns }: StatCardGroup
     const getColumn = (columnId: string) => columns.find((c) => c.id === columnId);
 
     return (
-        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border-2 border-primary/20 bg-primary/5 text-xs">
-            <Layers className="h-3 w-3 text-primary/60" />
-            <span className="text-muted-foreground font-medium">{group.name}:</span>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border bg-card text-xs shadow-sm">
+            <div className="flex items-center gap-1.5 border-r pr-2 mr-1">
+                <Layers className="h-3.5 w-3.5 text-primary" />
+                <span className="font-bold text-primary">{group.name}</span>
+            </div>
             {groupCards.map((card, idx) => {
                 const column = getColumn(card.columnId);
                 if (!column) return null;
                 const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
                 return (
-                    <span key={card.id} className="inline-flex items-center gap-0.5">
-                        {idx > 0 && <span className="text-muted-foreground/30 mx-0.5">•</span>}
-                        <span className="text-muted-foreground/70">{card.title}:</span>
-                        <span className="font-semibold">{value}</span>
+                    <span key={card.id} className="inline-flex items-center gap-1">
+                        {idx > 0 && <span className="text-muted-foreground mx-1">•</span>}
+                        <span className="text-muted-foreground font-medium">{card.title}:</span>
+                        <span className="font-bold text-foreground">{value}</span>
                     </span>
                 );
             })}
@@ -482,7 +484,7 @@ export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: Job
                                 const column = getColumn(card.columnId);
                                 if (!column) return null;
                                 const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
-                                const hasFilters = card.filters && card.filters.length > 0;
+                                const hasFilters = !!(card.filters && card.filters.length > 0);
                                 return (
                                     <DraggableStatCard
                                         key={card.id}
