@@ -330,16 +330,17 @@ function StatCardGroupDisplay({ group, cards, drawings, columns }: StatCardGroup
     const getColumn = (columnId: string) => columns.find((c) => c.id === columnId);
 
     return (
-        <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md border-2 border-primary/20 bg-primary/5 text-xs">
-            <Layers className="h-3 w-3 text-primary/60 mr-0.5" />
+        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border-2 border-primary/20 bg-primary/5 text-xs">
+            <Layers className="h-3 w-3 text-primary/60" />
             <span className="text-muted-foreground font-medium">{group.name}:</span>
             {groupCards.map((card, idx) => {
                 const column = getColumn(card.columnId);
                 if (!column) return null;
                 const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
                 return (
-                    <span key={card.id} className="flex items-center gap-0.5">
-                        {idx > 0 && <span className="text-muted-foreground/50">|</span>}
+                    <span key={card.id} className="inline-flex items-center gap-0.5">
+                        {idx > 0 && <span className="text-muted-foreground/30 mx-0.5">•</span>}
+                        <span className="text-muted-foreground/70">{card.title}:</span>
                         <span className="font-semibold">{value}</span>
                     </span>
                 );
