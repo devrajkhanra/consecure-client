@@ -29,6 +29,7 @@ const columnFormSchema = z.object({
     type: z.nativeEnum(ColumnType),
     required: z.boolean(),
     order: z.number().int().min(0),
+    isRevisionColumn: z.boolean(),
 });
 
 type ColumnFormValues = z.infer<typeof columnFormSchema>;
@@ -49,6 +50,7 @@ export function ColumnForm({ column, nextOrder = 0, onSubmit, isLoading, onCance
             type: column?.type ?? ColumnType.TEXT,
             required: column?.required ?? false,
             order: column?.order ?? nextOrder,
+            isRevisionColumn: column?.isRevisionColumn ?? false,
         },
     });
 
@@ -125,6 +127,25 @@ export function ColumnForm({ column, nextOrder = 0, onSubmit, isLoading, onCance
                                 <FormLabel>Required Field</FormLabel>
                                 <p className="text-sm text-muted-foreground">
                                     Users must fill this field when creating drawings
+                                </p>
+                            </div>
+                            <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="isRevisionColumn"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5">
+                                <FormLabel>Revision Tracking Column</FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                    Changes to this column will be logged in change history.
+                                    Only one column per job can have this enabled.
                                 </p>
                             </div>
                             <FormControl>

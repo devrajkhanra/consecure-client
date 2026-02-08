@@ -100,6 +100,11 @@ function SortableColumnItem({ column, onEdit, onDelete }: SortableColumnItemProp
                                 Required
                             </Badge>
                         )}
+                        {column.isRevisionColumn && (
+                            <Badge variant="default" className="text-xs">
+                                Revision
+                            </Badge>
+                        )}
                     </div>
                     <span className="text-sm text-muted-foreground">
                         {typeLabels[column.type]}
@@ -172,6 +177,7 @@ export function ColumnManager({ jobId }: ColumnManagerProps) {
                                 type: column.type,
                                 required: column.required,
                                 order: index,
+                                isRevisionColumn: column.isRevisionColumn,
                             },
                         })
                     )

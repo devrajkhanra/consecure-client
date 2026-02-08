@@ -85,6 +85,7 @@ export interface DrawingColumn {
     type: ColumnType;
     required: boolean;
     order: number;
+    isRevisionColumn: boolean;
     jobId: string;
 }
 
@@ -93,6 +94,7 @@ export interface CreateDrawingColumnDto {
     type?: ColumnType;
     required?: boolean;
     order?: number;
+    isRevisionColumn?: boolean;
 }
 
 export type UpdateDrawingColumnDto = Partial<CreateDrawingColumnDto>;
@@ -101,6 +103,9 @@ export type UpdateDrawingColumnDto = Partial<CreateDrawingColumnDto>;
 export interface Drawing {
     id: string;
     data: Record<string, unknown>;
+    revision: number;
+    parentId?: string | null;
+    isLatest: boolean;
     jobId: string;
     createdAt: string;
     updatedAt: string;
