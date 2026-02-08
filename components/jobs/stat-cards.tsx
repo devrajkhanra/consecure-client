@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Calculator, BarChart3, Filter, X } from 'lucide-react';
+import { Plus, Trash2, Calculator, BarChart3, Filter, X, ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ColumnType, type DrawingColumn, type Drawing } from '@/types';
@@ -235,9 +240,13 @@ function calculateAggregation(
     }
 }
 
-// Local storage key for saving card configs
+// Local storage keys
 function getStorageKey(jobId: string) {
     return `job-stats-config-${jobId}`;
+}
+
+function getCollapseKey(jobId: string) {
+    return `job-stats-collapsed-${jobId}`;
 }
 
 interface JobStatCardsProps {
@@ -249,6 +258,7 @@ interface JobStatCardsProps {
 
 export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: JobStatCardsProps) {
     const [cards, setCards] = useState<StatCardConfig[]>([]);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     // Load from local storage
     useEffect(() => {
@@ -260,45 +270,84 @@ export function JobStatCards({ jobId, columns, drawings, onConfigureClick }: Job
                 setCards([]);
             }
         }
+        // Load collapse state
+        const collapsed = localStorage.getItem(getCollapseKey(jobId));
+        setIsCollapsed(collapsed === 'true');
     }, [jobId]);
+
+    // Save collapse state
+    const toggleCollapse = () => {
+        const newState = !isCollapsed;
+        setIsCollapsed(newState);
+        localStorage.setItem(getCollapseKey(jobId), String(newState));
+    };
 
     // Get column by ID
     const getColumn = (columnId: string) => columns.find((c) => c.id === columnId);
 
-    return (
-        <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
-            {cards.map((card) => {
-                const column = getColumn(card.columnId);
-                if (!column) return null;
-
-                const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
-                const hasFilters = card.filters && card.filters.length > 0;
-
-                return (
-                    <Card key={card.id} className="p-3">
-                        <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-muted-foreground truncate">{card.title}</span>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                                {hasFilters && <Filter className="h-3 w-3 text-primary" />}
-                                <Calculator className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                        </div>
-                        <div className="text-lg font-bold">{value}</div>
-                    </Card>
-                );
-            })}
-
-            {/* Add Card Button */}
-            <Card
-                className="p-3 border-dashed cursor-pointer hover:border-primary/50 transition-colors"
+    // Don't render if no cards
+    if (cards.length === 0) {
+        return (
+            <div
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed cursor-pointer hover:border-primary/50 transition-colors text-muted-foreground"
                 onClick={onConfigureClick}
             >
-                <div className="flex items-center gap-2 text-muted-foreground">
-                    <Plus className="h-4 w-4" />
-                    <span className="text-sm">Add Stat</span>
+                <BarChart3 className="h-4 w-4" />
+                <span className="text-sm">Add stat cards to track metrics</span>
+            </div>
+        );
+    }
+
+    return (
+        <Collapsible open={!isCollapsed} onOpenChange={() => toggleCollapse()}>
+            <div className="flex items-center gap-2 mb-1">
+                <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 px-1.5 gap-1">
+                        {isCollapsed ? (
+                            <ChevronRight className="h-3.5 w-3.5" />
+                        ) : (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                        )}
+                        <span className="text-xs font-medium text-muted-foreground">Stats</span>
+                        <Badge variant="secondary" className="h-4 px-1 text-[10px]">{cards.length}</Badge>
+                    </Button>
+                </CollapsibleTrigger>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-1.5"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onConfigureClick();
+                    }}
+                >
+                    <Settings2 className="h-3 w-3" />
+                </Button>
+            </div>
+
+            <CollapsibleContent>
+                <div className="flex flex-wrap gap-1.5">
+                    {cards.map((card) => {
+                        const column = getColumn(card.columnId);
+                        if (!column) return null;
+
+                        const value = calculateAggregation(drawings, column, card.aggregation, card.filters, columns);
+                        const hasFilters = card.filters && card.filters.length > 0;
+
+                        return (
+                            <div
+                                key={card.id}
+                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 text-sm"
+                            >
+                                {hasFilters && <Filter className="h-2.5 w-2.5 text-primary" />}
+                                <span className="text-muted-foreground text-xs truncate max-w-[100px]">{card.title}:</span>
+                                <span className="font-semibold">{value}</span>
+                            </div>
+                        );
+                    })}
                 </div>
-            </Card>
-        </div>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 
