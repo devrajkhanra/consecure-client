@@ -64,6 +64,8 @@ import { DrawingTable } from '@/components/drawings/drawing-table';
 import { DrawingForm } from '@/components/drawings/drawing-form';
 import { JobStatCards, StatCardConfigurator } from '@/components/jobs/stat-cards';
 import { ExcelUploadDialog } from '@/components/drawings/excel-upload';
+import { MaterialExcelUploadDialog } from '@/components/materials/material-excel-upload';
+import { useMaterialColumns } from '@/hooks/use-material-columns';
 import type { CreateJobDto, Drawing, CreateDrawingDto } from '@/types';
 
 // Local storage key for info collapse state
@@ -77,6 +79,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const { data: job, isLoading: jobLoading, error } = useJob(id);
     const { data: columns, isLoading: columnsLoading } = useDrawingColumns(id);
     const { data: drawings, isLoading: drawingsLoading } = useDrawings(id);
+    const { data: materialColumns } = useMaterialColumns(id);
     const updateJob = useUpdateJob();
     const deleteJob = useDeleteJob();
     const createDrawing = useCreateDrawing();
@@ -93,6 +96,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [editingDrawing, setEditingDrawing] = useState<Drawing | null>(null);
     const [deletingDrawing, setDeletingDrawing] = useState<Drawing | null>(null);
     const [isMaterialColumnConfigOpen, setIsMaterialColumnConfigOpen] = useState(false);
+    const [isMaterialExcelOpen, setIsMaterialExcelOpen] = useState(false);
     const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
 
     // Load info collapse state
@@ -305,6 +309,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     <div className="flex gap-2">
                         <Button
                             variant="outline"
+                            onClick={() => setIsMaterialExcelOpen(true)}
+                            disabled={!columns || columns.length === 0 || !materialColumns || materialColumns.length === 0}
+                        >
+                            <Package className="mr-2 h-4 w-4" />
+                            Import Materials
+                        </Button>
+                        <Button
+                            variant="outline"
                             onClick={() => setIsExcelUploadOpen(true)}
                             disabled={!columns || columns.length === 0}
                         >
@@ -486,6 +498,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 open={isExcelUploadOpen}
                 onOpenChange={setIsExcelUploadOpen}
                 onImport={handleBulkImport}
+            />
+
+            {/* Material Excel Upload Dialog */}
+            <MaterialExcelUploadDialog
+                jobId={id}
+                drawings={drawings ?? []}
+                drawingColumns={columns ?? []}
+                materialColumns={materialColumns ?? []}
+                open={isMaterialExcelOpen}
+                onOpenChange={setIsMaterialExcelOpen}
             />
         </div>
     );

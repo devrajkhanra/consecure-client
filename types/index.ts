@@ -14,6 +14,16 @@ export enum ColumnType {
     BOOLEAN = 'boolean',
 }
 
+// Material status
+export enum MaterialStatus {
+    REQUIRED = 'required',
+    ISSUED = 'issued',
+    USED = 'used',
+    PENDING = 'pending',
+    RETURNED = 'returned',
+    REJECTED = 'rejected',
+}
+
 // ===== Project =====
 export interface Project {
     id: string;
@@ -175,6 +185,12 @@ export type UpdateMaterialColumnDto = Partial<CreateMaterialColumnDto>;
 export interface Material {
     id: string;
     data: Record<string, unknown>;
+    status: MaterialStatus;
+    quantityRequired: number;
+    quantityIssued: number;
+    quantityUsed: number;
+    unit?: string | null;
+    remarks?: string | null;
     drawingId: string;
     drawing?: Drawing;
     createdAt: string;
@@ -183,9 +199,57 @@ export interface Material {
 
 export interface CreateMaterialDto {
     data: Record<string, unknown>;
+    status?: MaterialStatus;
+    quantityRequired?: number;
+    quantityIssued?: number;
+    quantityUsed?: number;
+    unit?: string;
+    remarks?: string;
 }
 
 export type UpdateMaterialDto = Partial<CreateMaterialDto>;
+
+export interface UpdateMaterialStatusDto {
+    status: MaterialStatus;
+}
+
+// ===== Material Summary =====
+export interface MaterialSummary {
+    status: MaterialStatus;
+    count: number;
+    totalRequired: number;
+    totalIssued: number;
+    totalUsed: number;
+}
+
+// ===== Material Transaction =====
+export enum MaterialTransactionType {
+    ISSUED = 'issued',
+    USED = 'used',
+    RETURNED = 'returned',
+}
+
+export interface MaterialTransaction {
+    id: string;
+    materialId: string;
+    transactionType: MaterialTransactionType;
+    quantity: number;
+    documentNumber: string;
+    transactionDate: string;
+    remarks?: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateMaterialTransactionDto {
+    transactionType: MaterialTransactionType;
+    quantity: number;
+    documentNumber: string;
+    transactionDate: string;
+    remarks?: string;
+}
+
+export type UpdateMaterialTransactionDto = Partial<CreateMaterialTransactionDto>;
 
 // ===== API Response Types =====
 export interface ApiError {

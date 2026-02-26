@@ -68,6 +68,18 @@ export function useDeleteDrawing() {
     });
 }
 
+// Fetch all revisions of a drawing
+export function useDrawingRevisions(jobId: string | undefined, drawingId: string | undefined) {
+    return useQuery({
+        queryKey: [QUERY_KEY, jobId, drawingId, 'revisions'],
+        queryFn: async (): Promise<Drawing[]> => {
+            const { data } = await api.get<Drawing[]>(`/jobs/${jobId}/drawings/${drawingId}/revisions`);
+            return data;
+        },
+        enabled: !!jobId && !!drawingId,
+    });
+}
+
 // Bulk create drawings mutation (for Excel import)
 export function useBulkCreateDrawings() {
     const queryClient = useQueryClient();

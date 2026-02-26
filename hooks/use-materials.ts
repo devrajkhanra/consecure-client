@@ -1,15 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import type { Material, CreateMaterialDto, UpdateMaterialDto } from '@/types';
+import type { Material, MaterialSummary, CreateMaterialDto, UpdateMaterialDto, UpdateMaterialStatusDto } from '@/types';
 
 const QUERY_KEY = 'materials';
 
-// Fetch all materials for a drawing
-export function useMaterials(drawingId: string | undefined) {
+// Fetch all materials for a drawing (with optional status filter)
+export function useMaterials(drawingId: string | undefined, status?: string) {
     return useQuery({
-        queryKey: [QUERY_KEY, 'drawing', drawingId],
+        queryKey: [QUERY_KEY, 'drawing', drawingId, status],
         queryFn: async (): Promise<Material[]> => {
-            const { data } = await api.get<Material[]>(`/drawings/${drawingId}/materials`);
+            const params = new URLSearchParams();
+            if (status) params.append('status', status);
+            const url = `/drawings/${drawingId}/materials${params.toString() ? `?${params.toString()}` : ''}`;
+            const { data } = await api.get<Material[]>(url);
             return data;
         },
         enabled: !!drawingId,
@@ -28,6 +31,18 @@ export function useJobMaterials(jobId: string | undefined) {
     });
 }
 
+// Fetch material summary for a job
+export function useMaterialSummary(jobId: string | undefined) {
+    return useQuery({
+        queryKey: [QUERY_KEY, 'summary', jobId],
+        queryFn: async (): Promise<MaterialSummary[]> => {
+            const { data } = await api.get<MaterialSummary[]>(`/jobs/${jobId}/materials/summary`);
+            return data;
+        },
+        enabled: !!jobId,
+    });
+}
+
 // Create material mutation
 export function useCreateMaterial() {
     const queryClient = useQueryClient();
@@ -40,6 +55,7 @@ export function useCreateMaterial() {
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'drawing', data.drawingId] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'job'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'summary'] });
         },
     });
 }
@@ -64,6 +80,32 @@ export function useUpdateMaterial() {
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'drawing', data.drawingId] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'job'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'summary'] });
+        },
+    });
+}
+
+// Update material status mutation
+export function useUpdateMaterialStatus() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            drawingId,
+            materialId,
+            dto
+        }: {
+            drawingId: string;
+            materialId: string;
+            dto: UpdateMaterialStatusDto
+        }): Promise<Material> => {
+            const { data } = await api.patch<Material>(`/drawings/${drawingId}/materials/${materialId}/status`, dto);
+            return data;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'drawing', data.drawingId] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'job'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'summary'] });
         },
     });
 }
@@ -79,6 +121,7 @@ export function useDeleteMaterial() {
         onSuccess: (_, { drawingId }) => {
             queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'drawing', drawingId] });
             queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'job'] });
+            queryClient.invalidateQueries({ queryKey: [QUERY_KEY, 'summary'] });
         },
     });
 }

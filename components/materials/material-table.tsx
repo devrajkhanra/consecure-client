@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, Package } from 'lucide-react';
+import { useState, Fragment } from 'react';
+import { Plus, Pencil, Trash2, Package, ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,8 +29,10 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MaterialForm } from '@/components/materials/material-form';
+import { TransactionTable } from '@/components/materials/transaction-table';
 import {
     useMaterials,
     useCreateMaterial,
@@ -38,7 +40,25 @@ import {
     useDeleteMaterial,
 } from '@/hooks/use-materials';
 import type { MaterialColumn, Material, CreateMaterialDto } from '@/types';
-import { ColumnType } from '@/types';
+import { ColumnType, MaterialStatus } from '@/types';
+
+const STATUS_VARIANT: Record<MaterialStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    [MaterialStatus.REQUIRED]: 'outline',
+    [MaterialStatus.PENDING]: 'secondary',
+    [MaterialStatus.ISSUED]: 'default',
+    [MaterialStatus.USED]: 'default',
+    [MaterialStatus.RETURNED]: 'secondary',
+    [MaterialStatus.REJECTED]: 'destructive',
+};
+
+const STATUS_LABEL: Record<MaterialStatus, string> = {
+    [MaterialStatus.REQUIRED]: 'Required',
+    [MaterialStatus.PENDING]: 'Pending',
+    [MaterialStatus.ISSUED]: 'Issued',
+    [MaterialStatus.USED]: 'Used',
+    [MaterialStatus.RETURNED]: 'Returned',
+    [MaterialStatus.REJECTED]: 'Rejected',
+};
 
 interface MaterialTableProps {
     drawingId: string;
@@ -54,8 +74,13 @@ export function MaterialTable({ drawingId, columns }: MaterialTableProps) {
     const [isAdding, setIsAdding] = useState(false);
     const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
     const [deletingMaterial, setDeletingMaterial] = useState<Material | null>(null);
+    const [expandedMaterialId, setExpandedMaterialId] = useState<string | null>(null);
 
     const sortedColumns = columns.slice().sort((a, b) => a.order - b.order);
+
+    const toggleExpand = (materialId: string) => {
+        setExpandedMaterialId(expandedMaterialId === materialId ? null : materialId);
+    };
 
     const handleCreate = async (data: CreateMaterialDto) => {
         try {
@@ -111,6 +136,14 @@ export function MaterialTable({ drawingId, columns }: MaterialTableProps) {
         }
     };
 
+    const formatQty = (value: number | undefined | null): string => {
+        if (value === undefined || value === null) return '-';
+        return Number(value).toLocaleString();
+    };
+
+    // Total dynamic + built-in columns + expand + actions
+    const totalColSpan = sortedColumns.length + 7;
+
     if (error) {
         return (
             <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive text-sm">
@@ -143,47 +176,95 @@ export function MaterialTable({ drawingId, columns }: MaterialTableProps) {
             {isLoading ? (
                 <Skeleton className="h-24 w-full" />
             ) : (materials?.length ?? 0) > 0 ? (
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead className="w-[30px]"></TableHead>
                                 {sortedColumns.map((col) => (
                                     <TableHead key={col.id} className="text-xs">
                                         {col.name}
                                     </TableHead>
                                 ))}
+                                <TableHead className="text-xs">Status</TableHead>
+                                <TableHead className="text-xs text-right">Req</TableHead>
+                                <TableHead className="text-xs text-right">Issued</TableHead>
+                                <TableHead className="text-xs text-right">Used</TableHead>
+                                <TableHead className="text-xs">Unit</TableHead>
                                 <TableHead className="w-20 text-xs">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {materials?.map((material) => (
-                                <TableRow key={material.id}>
-                                    {sortedColumns.map((col) => (
-                                        <TableCell key={col.id} className="text-sm">
-                                            {formatCellValue(material.data[col.name], col.type)}
+                                <Fragment key={material.id}>
+                                    <TableRow className={expandedMaterialId === material.id ? 'bg-muted/50' : ''}>
+                                        <TableCell>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-5 w-5 p-0"
+                                                onClick={() => toggleExpand(material.id)}
+                                            >
+                                                {expandedMaterialId === material.id ? (
+                                                    <ChevronDown className="h-3 w-3" />
+                                                ) : (
+                                                    <ChevronRight className="h-3 w-3" />
+                                                )}
+                                            </Button>
                                         </TableCell>
-                                    ))}
-                                    <TableCell>
-                                        <div className="flex gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                onClick={() => setEditingMaterial(material)}
-                                            >
-                                                <Pencil className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                                onClick={() => setDeletingMaterial(material)}
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                                        {sortedColumns.map((col) => (
+                                            <TableCell key={col.id} className="text-sm">
+                                                {formatCellValue(material.data[col.name], col.type)}
+                                            </TableCell>
+                                        ))}
+                                        <TableCell>
+                                            <Badge variant={STATUS_VARIANT[material.status] ?? 'outline'} className="text-xs">
+                                                {STATUS_LABEL[material.status] ?? material.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm text-right font-mono">
+                                            {formatQty(material.quantityRequired)}
+                                        </TableCell>
+                                        <TableCell className="text-sm text-right font-mono">
+                                            {formatQty(material.quantityIssued)}
+                                        </TableCell>
+                                        <TableCell className="text-sm text-right font-mono">
+                                            {formatQty(material.quantityUsed)}
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {material.unit ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7"
+                                                    onClick={() => setEditingMaterial(material)}
+                                                >
+                                                    <Pencil className="h-3 w-3" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                                    onClick={() => setDeletingMaterial(material)}
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    {expandedMaterialId === material.id && (
+                                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                            <TableCell colSpan={totalColSpan} className="p-3">
+                                                <div className="pl-6">
+                                                    <TransactionTable materialId={material.id} />
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </Fragment>
                             ))}
                         </TableBody>
                     </Table>
@@ -196,7 +277,7 @@ export function MaterialTable({ drawingId, columns }: MaterialTableProps) {
 
             {/* Add Material Dialog */}
             <Dialog open={isAdding} onOpenChange={setIsAdding}>
-                <DialogContent>
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Add Material</DialogTitle>
                         <DialogDescription>Add a new material to this drawing</DialogDescription>
@@ -212,7 +293,7 @@ export function MaterialTable({ drawingId, columns }: MaterialTableProps) {
 
             {/* Edit Material Dialog */}
             <Dialog open={!!editingMaterial} onOpenChange={() => setEditingMaterial(null)}>
-                <DialogContent>
+                <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Material</DialogTitle>
                         <DialogDescription>Update material details</DialogDescription>
