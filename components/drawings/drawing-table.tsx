@@ -36,7 +36,7 @@ export function DrawingTable({ jobId, drawings, columns, onEdit, onDelete }: Dra
     const [historyDrawingId, setHistoryDrawingId] = useState<string | null>(null);
     const [expandedDrawingId, setExpandedDrawingId] = useState<string | null>(null);
     const { data: materialColumns } = useMaterialColumns(jobId);
-    const pageSize = 10;
+    const pageSize = 25;
 
     const sortedColumns = columns.slice().sort((a, b) => a.order - b.order);
     const paginatedDrawings = drawings.slice(page * pageSize, (page + 1) * pageSize);
