@@ -126,31 +126,31 @@ export function DrawingTable({ jobId, drawings, columns, onEdit, onDelete }: Dra
     // }, [drawings, visibleColumns]);
 
     const handleDownloadExcel = useCallback(async () => {
-    // Dynamically load the XLSX library
-    const XLSX = await import('xlsx');
+        // Dynamically load the XLSX library
+        const XLSX = await import('xlsx');
 
-    const headers = visibleColumns.map((col) => col.name);
-    const rows = drawings.map((drawing) =>
-        visibleColumns.map((col) => getCellStringValue(drawing, col))
-    );
-
-    const wsData = [headers, ...rows];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Auto-size columns
-    const colWidths = headers.map((h, i) => {
-        const maxLen = Math.max(
-            h.length,
-            ...rows.map((r) => (r[i] ?? '').length)
+        const headers = visibleColumns.map((col) => col.name);
+        const rows = drawings.map((drawing) =>
+            visibleColumns.map((col) => getCellStringValue(drawing, col))
         );
-        return { wch: Math.min(maxLen + 2, 40) };
-    });
-    ws['!cols'] = colWidths;
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Drawings');
-    XLSX.writeFile(wb, 'drawings.xlsx');
-}, [drawings, visibleColumns]);
+        const wsData = [headers, ...rows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // Auto-size columns
+        const colWidths = headers.map((h, i) => {
+            const maxLen = Math.max(
+                h.length,
+                ...rows.map((r) => (r[i] ?? '').length)
+            );
+            return { wch: Math.min(maxLen + 2, 40) };
+        });
+        ws['!cols'] = colWidths;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Drawings');
+        XLSX.writeFile(wb, 'drawings.xlsx');
+    }, [drawings, visibleColumns]);
 
 
     // const handleDownloadPdf = useCallback(() => {
@@ -183,35 +183,35 @@ export function DrawingTable({ jobId, drawings, columns, onEdit, onDelete }: Dra
 
 
     const handleDownloadPdf = useCallback(async () => {
-    // 1. Dynamically load the libraries only when clicked
-    const { jsPDF } = await import('jspdf');
-    const autoTable = (await import('jspdf-autotable')).default;
+        // 1. Dynamically load the libraries only when clicked
+        const { jsPDF } = await import('jspdf');
+        const autoTable = (await import('jspdf-autotable')).default;
 
-    // 2. The rest of your code stays exactly the same
-    const doc = new jsPDF({ orientation: 'landscape' });
-    const headers = visibleColumns.map((col) => col.name);
-    const rows = drawings.map((drawing) =>
-        visibleColumns.map((col) => getCellStringValue(drawing, col))
-    );
+        // 2. The rest of your code stays exactly the same
+        const doc = new jsPDF({ orientation: 'landscape' });
+        const headers = visibleColumns.map((col) => col.name);
+        const rows = drawings.map((drawing) =>
+            visibleColumns.map((col) => getCellStringValue(drawing, col))
+        );
 
-    doc.setFontSize(14);
-    doc.text('Drawings List', 14, 15);
-    doc.setFontSize(9);
-    doc.setTextColor(128);
-    doc.text(`Generated on ${format(new Date(), 'MMM d, yyyy HH:mm')}`, 14, 22);
+        doc.setFontSize(14);
+        doc.text('Drawings List', 14, 15);
+        doc.setFontSize(9);
+        doc.setTextColor(128);
+        doc.text(`Generated on ${format(new Date(), 'MMM d, yyyy HH:mm')}`, 14, 22);
 
-    autoTable(doc, {
-        head: [headers],
-        body: rows,
-        startY: 28,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [41, 37, 36], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [248, 248, 248] },
-        margin: { left: 14, right: 14 },
-    });
+        autoTable(doc, {
+            head: [headers],
+            body: rows,
+            startY: 28,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [41, 37, 36], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 248, 248] },
+            margin: { left: 14, right: 14 },
+        });
 
-    doc.save('drawings.pdf');
-}, [drawings, visibleColumns]);
+        doc.save('drawings.pdf');
+    }, [drawings, visibleColumns]);
 
 
     const renderCellValue = (drawing: Drawing, column: DrawingColumn) => {
