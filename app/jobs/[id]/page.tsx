@@ -66,6 +66,7 @@ import { JobStatCards, StatCardConfigurator } from '@/components/jobs/stat-cards
 import { ExcelUploadDialog } from '@/components/drawings/excel-upload';
 import { MaterialExcelUploadDialog } from '@/components/materials/material-excel-upload';
 import { useMaterialColumns } from '@/hooks/use-material-columns';
+import { JobMaterialsTable } from '@/components/materials/job-materials-table';
 import type { CreateJobDto, Drawing, CreateDrawingDto } from '@/types';
 
 // Local storage key for info collapse state
@@ -98,6 +99,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [isMaterialColumnConfigOpen, setIsMaterialColumnConfigOpen] = useState(false);
     const [isMaterialExcelOpen, setIsMaterialExcelOpen] = useState(false);
     const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
+    const [activeTab, setActiveTab] = useState<'drawings' | 'materials'>('drawings');
 
     // Load info collapse state
     useEffect(() => {
@@ -299,64 +301,98 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 />
             )}
 
-            {/* Drawings Section */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Drawings</CardTitle>
-                        <CardDescription>Manage drawings for this job</CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsMaterialExcelOpen(true)}
-                            disabled={!columns || columns.length === 0 || !materialColumns || materialColumns.length === 0}
-                        >
-                            <Package className="mr-2 h-4 w-4" />
-                            Import Materials
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsExcelUploadOpen(true)}
-                            disabled={!columns || columns.length === 0}
-                        >
-                            <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Import Excel
-                        </Button>
-                        <Button
-                            onClick={() => setIsAddingDrawing(true)}
-                            disabled={!columns || columns.length === 0}
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Drawing
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    {drawingsLoading || columnsLoading ? (
-                        <div className="space-y-3">
-                            <Skeleton className="h-16 w-full" />
-                            <Skeleton className="h-16 w-full" />
+            {/* Tab Toggle */}
+            <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1 w-fit">
+                <Button
+                    variant={activeTab === 'drawings' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-8 px-4"
+                    onClick={() => setActiveTab('drawings')}
+                >
+                    <Table2 className="mr-2 h-4 w-4" />
+                    Drawings
+                </Button>
+                <Button
+                    variant={activeTab === 'materials' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-8 px-4"
+                    onClick={() => setActiveTab('materials')}
+                >
+                    <Package className="mr-2 h-4 w-4" />
+                    Materials
+                </Button>
+            </div>
+
+            {/* Content based on active tab */}
+            {activeTab === 'drawings' ? (
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Drawings</CardTitle>
+                            <CardDescription>Manage drawings for this job</CardDescription>
                         </div>
-                    ) : columns && columns.length === 0 ? (
-                        <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
-                            <p>No columns configured yet.</p>
-                            <Button variant="outline" size="sm" onClick={() => setIsColumnConfigOpen(true)}>
-                                <Settings2 className="mr-2 h-4 w-4" />
-                                Configure Columns
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsMaterialExcelOpen(true)}
+                                disabled={!columns || columns.length === 0 || !materialColumns || materialColumns.length === 0}
+                            >
+                                <Package className="mr-2 h-4 w-4" />
+                                Import Materials
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsExcelUploadOpen(true)}
+                                disabled={!columns || columns.length === 0}
+                            >
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                Import Excel
+                            </Button>
+                            <Button
+                                onClick={() => setIsAddingDrawing(true)}
+                                disabled={!columns || columns.length === 0}
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Drawing
                             </Button>
                         </div>
-                    ) : (
-                        <DrawingTable
-                            jobId={id}
-                            drawings={drawings ?? []}
-                            columns={columns ?? []}
-                            onEdit={(drawing) => setEditingDrawing(drawing)}
-                            onDelete={(drawing) => setDeletingDrawing(drawing)}
-                        />
-                    )}
-                </CardContent>
-            </Card>
+                    </CardHeader>
+                    <CardContent>
+                        {drawingsLoading || columnsLoading ? (
+                            <div className="space-y-3">
+                                <Skeleton className="h-16 w-full" />
+                                <Skeleton className="h-16 w-full" />
+                            </div>
+                        ) : columns && columns.length === 0 ? (
+                            <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
+                                <p>No columns configured yet.</p>
+                                <Button variant="outline" size="sm" onClick={() => setIsColumnConfigOpen(true)}>
+                                    <Settings2 className="mr-2 h-4 w-4" />
+                                    Configure Columns
+                                </Button>
+                            </div>
+                        ) : (
+                            <DrawingTable
+                                jobId={id}
+                                drawings={drawings ?? []}
+                                columns={columns ?? []}
+                                onEdit={(drawing) => setEditingDrawing(drawing)}
+                                onDelete={(drawing) => setDeletingDrawing(drawing)}
+                            />
+                        )}
+                    </CardContent>
+                </Card>
+            ) : (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Materials</CardTitle>
+                        <CardDescription>View all materials across drawings</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <JobMaterialsTable jobId={id} />
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Column Configuration Modal */}
             <Dialog open={isColumnConfigOpen} onOpenChange={setIsColumnConfigOpen}>
