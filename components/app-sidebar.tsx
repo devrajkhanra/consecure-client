@@ -67,7 +67,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         <SidebarProvider>
             <div className="flex min-h-screen w-full">
                 <Sidebar className="border-r border-sidebar-border">
-                    <SidebarHeader className="border-b border-sidebar-border px-6 py-4">
+                    <SidebarHeader className="flex h-14 items-center border-b border-sidebar-border px-6">
                         <Link href="/" className="flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                                 <Shield className="h-5 w-5" />
