@@ -222,6 +222,14 @@ export interface MaterialSummary {
     totalUsed: number;
 }
 
+export interface PaginatedResponse<T> {
+    data: T[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
 // ===== Material Transaction =====
 export enum MaterialTransactionType {
     ISSUED = 'issued',
@@ -250,6 +258,118 @@ export interface CreateMaterialTransactionDto {
 }
 
 export type UpdateMaterialTransactionDto = Partial<CreateMaterialTransactionDto>;
+
+// ===== Joint =====
+export enum JointStage {
+    PENDING = 'pending',
+    FITUP = 'fitup',
+    WELDING = 'welding',
+    ERECTION = 'erection',
+    COMPLETED = 'completed',
+}
+
+export interface Joint {
+    id: string;
+    jointNumber: string;
+    drawingId: string;
+    stage: JointStage;
+    materialOneId?: string | null;
+    materialTwoId?: string | null;
+    fitupDate?: string | null;
+    weldDate?: string | null;
+    erectionDate?: string | null;
+    remarks?: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateJointDto {
+    jointNumber: string;
+    materialOneId?: string;
+    materialTwoId?: string;
+    remarks?: string;
+}
+
+export type UpdateJointDto = Partial<CreateJointDto>;
+
+export interface UpdateJointStageDto {
+    stage: JointStage;
+    fitupDate?: string;
+    weldDate?: string;
+    erectionDate?: string;
+}
+
+// ==========================================
+// Spools
+// ==========================================
+
+export interface Spool {
+    id: string;
+    spoolNumber: string;
+    drawingId: string;
+    status?: string;
+    description?: string;
+    remarks?: string;
+    createdAt: string;
+    updatedAt: string;
+    
+    // Relations
+    drawing?: Drawing;
+}
+
+export interface CreateSpoolDto {
+    spoolNumber: string;
+    status?: string;
+    description?: string;
+    remarks?: string;
+}
+
+export type UpdateSpoolDto = Partial<CreateSpoolDto>;
+
+// ==========================================
+// Drawing Connections
+// ==========================================
+
+export enum ConnectionType {
+    MATERIAL = 'material',
+    SPOOL = 'spool',
+    JOINT = 'joint',
+}
+
+export interface DrawingConnection {
+    id: string;
+    drawingOneId: string;
+    drawingTwoId: string;
+    connectionType: ConnectionType;
+    materialId?: string;
+    spoolId?: string;
+    jointId?: string;
+    description?: string;
+    remarks?: string;
+    createdAt: string;
+    updatedAt: string;
+    
+    // Relations
+    drawingOne?: Drawing;
+    drawingTwo?: Drawing;
+    material?: Material;
+    spool?: Spool;
+    joint?: Joint;
+}
+
+export interface CreateDrawingConnectionDto {
+    drawingOneId: string;
+    drawingTwoId: string;
+    connectionType: ConnectionType;
+    materialId?: string;
+    spoolId?: string;
+    jointId?: string;
+    description?: string;
+    remarks?: string;
+}
+
+export type UpdateDrawingConnectionDto = Partial<CreateDrawingConnectionDto>;
+
 
 // ===== API Response Types =====
 export interface ApiError {

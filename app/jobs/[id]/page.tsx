@@ -19,7 +19,11 @@ import {
     ChevronDown,
     ChevronRight,
     Info,
+    Link2,
     Package,
+    Import,
+    Component,
+    Network,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,7 +70,11 @@ import { JobStatCards, StatCardConfigurator } from '@/components/jobs/stat-cards
 import { ExcelUploadDialog } from '@/components/drawings/excel-upload';
 import { MaterialExcelUploadDialog } from '@/components/materials/material-excel-upload';
 import { useMaterialColumns } from '@/hooks/use-material-columns';
+import { useJobMaterials } from '@/hooks/use-materials';
+import { SpoolTable } from '@/components/spools/spool-table';
+import { ConnectionTable } from '@/components/drawing-connections/connection-table';
 import { JobMaterialsTable } from '@/components/materials/job-materials-table';
+import { JointTable } from '@/components/joints/joint-table';
 import type { CreateJobDto, Drawing, CreateDrawingDto } from '@/types';
 
 // Local storage key for info collapse state
@@ -81,6 +89,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const { data: columns, isLoading: columnsLoading } = useDrawingColumns(id);
     const { data: drawings, isLoading: drawingsLoading } = useDrawings(id);
     const { data: materialColumns } = useMaterialColumns(id);
+    const { data: jobMaterials } = useJobMaterials(id);
     const updateJob = useUpdateJob();
     const deleteJob = useDeleteJob();
     const createDrawing = useCreateDrawing();
@@ -99,7 +108,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const [isMaterialColumnConfigOpen, setIsMaterialColumnConfigOpen] = useState(false);
     const [isMaterialExcelOpen, setIsMaterialExcelOpen] = useState(false);
     const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
-    const [activeTab, setActiveTab] = useState<'drawings' | 'materials'>('drawings');
+    const [activeTab, setActiveTab] = useState<'drawings' | 'materials' | 'joints' | 'spools' | 'connections'>('drawings');
 
     // Load info collapse state
     useEffect(() => {
@@ -271,20 +280,27 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     <div className="flex flex-wrap gap-1.5">
                         <Link
                             href={`/sites/${job.siteId}`}
-                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 text-sm hover:bg-muted/50 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm hover:shadow-sm transition-all"
+                            style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe' }}
                         >
-                            <MapPin className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-muted-foreground text-xs">Site:</span>
+                            <MapPin className="h-3 w-3" style={{ color: '#3b82f6' }} />
+                            <span className="text-xs" style={{ color: '#3b82f6' }}>Site:</span>
                             <span className="font-semibold truncate max-w-[120px]">{job.site?.name ?? 'View'}</span>
                         </Link>
-                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 text-sm">
-                            <Table2 className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-muted-foreground text-xs">Columns:</span>
+                        <div
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm"
+                            style={{ backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe' }}
+                        >
+                            <Table2 className="h-3 w-3" style={{ color: '#8b5cf6' }} />
+                            <span className="text-xs" style={{ color: '#8b5cf6' }}>Columns:</span>
                             <span className="font-semibold">{columns?.length ?? 0}</span>
                         </div>
-                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border bg-muted/30 text-sm">
-                            <Briefcase className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-muted-foreground text-xs">Drawings:</span>
+                        <div
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm"
+                            style={{ backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0' }}
+                        >
+                            <Briefcase className="h-3 w-3" style={{ color: '#10b981' }} />
+                            <span className="text-xs" style={{ color: '#10b981' }}>Drawings:</span>
                             <span className="font-semibold">{drawings?.length ?? 0}</span>
                         </div>
                     </div>
@@ -301,97 +317,188 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 />
             )}
 
-            {/* Tab Toggle */}
-            <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1 w-fit">
-                <Button
-                    variant={activeTab === 'drawings' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-8 px-4"
-                    onClick={() => setActiveTab('drawings')}
-                >
-                    <Table2 className="mr-2 h-4 w-4" />
-                    Drawings
-                </Button>
-                <Button
-                    variant={activeTab === 'materials' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-8 px-4"
-                    onClick={() => setActiveTab('materials')}
-                >
-                    <Package className="mr-2 h-4 w-4" />
-                    Materials
-                </Button>
+            {/* Unified Toolbar: Tabs + Context Actions */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+                {/* Tab Pills */}
+                <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
+                    <button
+                        onClick={() => setActiveTab('drawings')}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+                            activeTab === 'drawings'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Table2 className="h-3.5 w-3.5" />
+                        Drawings
+                        <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            activeTab === 'drawings' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                        }`}>{drawings?.length ?? 0}</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('materials')}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+                            activeTab === 'materials'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Package className="h-3.5 w-3.5" />
+                        Materials
+                        <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            activeTab === 'materials' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                        }`}>{jobMaterials?.length ?? 0}</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('joints')}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+                            activeTab === 'joints'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Link2 className="h-3.5 w-3.5" />
+                        Joints
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('spools')}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+                            activeTab === 'spools'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Component className="h-3.5 w-3.5" />
+                        Spools
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('connections')}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium transition-all ${
+                            activeTab === 'connections'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Network className="h-3.5 w-3.5" />
+                        Connections
+                    </button>
+                </div>
+
+                {/* Context-Sensitive Actions */}
+                {activeTab === 'drawings' && (
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={!columns || columns.length === 0}
+                                >
+                                    <Import className="mr-2 h-4 w-4" />
+                                    Import
+                                    <ChevronDown className="ml-1 h-3 w-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    onClick={() => setIsExcelUploadOpen(true)}
+                                    disabled={!columns || columns.length === 0}
+                                >
+                                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                    Import Drawings
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => setIsMaterialExcelOpen(true)}
+                                    disabled={!columns || columns.length === 0 || !materialColumns || materialColumns.length === 0}
+                                >
+                                    <Package className="mr-2 h-4 w-4" />
+                                    Import Materials
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                            size="sm"
+                            onClick={() => setIsAddingDrawing(true)}
+                            disabled={!columns || columns.length === 0}
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Drawing
+                        </Button>
+                    </div>
+                )}
             </div>
 
-            {/* Content based on active tab */}
+            {/* Tab Content */}
             {activeTab === 'drawings' ? (
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Drawings</CardTitle>
-                            <CardDescription>Manage drawings for this job</CardDescription>
+                <div>
+                    {drawingsLoading || columnsLoading ? (
+                        <div className="space-y-3">
+                            <Skeleton className="h-16 w-full" />
+                            <Skeleton className="h-16 w-full" />
                         </div>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                onClick={() => setIsMaterialExcelOpen(true)}
-                                disabled={!columns || columns.length === 0 || !materialColumns || materialColumns.length === 0}
-                            >
-                                <Package className="mr-2 h-4 w-4" />
-                                Import Materials
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => setIsExcelUploadOpen(true)}
-                                disabled={!columns || columns.length === 0}
-                            >
-                                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                                Import Excel
-                            </Button>
-                            <Button
-                                onClick={() => setIsAddingDrawing(true)}
-                                disabled={!columns || columns.length === 0}
-                            >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Add Drawing
+                    ) : columns && columns.length === 0 ? (
+                        <div className="flex h-40 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-muted-foreground">
+                            <Settings2 className="h-8 w-8 text-muted-foreground/50" />
+                            <p>No columns configured yet</p>
+                            <Button variant="outline" size="sm" onClick={() => setIsColumnConfigOpen(true)}>
+                                Configure Columns
                             </Button>
                         </div>
-                    </CardHeader>
-                    <CardContent>
-                        {drawingsLoading || columnsLoading ? (
-                            <div className="space-y-3">
-                                <Skeleton className="h-16 w-full" />
-                                <Skeleton className="h-16 w-full" />
-                            </div>
-                        ) : columns && columns.length === 0 ? (
-                            <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
-                                <p>No columns configured yet.</p>
-                                <Button variant="outline" size="sm" onClick={() => setIsColumnConfigOpen(true)}>
-                                    <Settings2 className="mr-2 h-4 w-4" />
-                                    Configure Columns
-                                </Button>
-                            </div>
-                        ) : (
-                            <DrawingTable
-                                jobId={id}
-                                drawings={drawings ?? []}
-                                columns={columns ?? []}
-                                onEdit={(drawing) => setEditingDrawing(drawing)}
-                                onDelete={(drawing) => setDeletingDrawing(drawing)}
-                            />
-                        )}
-                    </CardContent>
-                </Card>
+                    ) : (
+                        <DrawingTable
+                            jobId={id}
+                            drawings={drawings ?? []}
+                            columns={columns ?? []}
+                            onEdit={(drawing) => setEditingDrawing(drawing)}
+                            onDelete={(drawing) => setDeletingDrawing(drawing)}
+                        />
+                    )}
+                </div>
+            ) : activeTab === 'materials' ? (
+                <JobMaterialsTable jobId={id} />
+            ) : activeTab === 'connections' ? (
+                <div className="rounded-md border bg-card/50 p-4">
+                    <ConnectionTable drawings={drawings ?? []} drawingColumns={columns ?? []} jobId={id} />
+                </div>
             ) : (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Materials</CardTitle>
-                        <CardDescription>View all materials across drawings</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <JobMaterialsTable jobId={id} />
-                    </CardContent>
-                </Card>
+                <div>
+                    {drawingsLoading ? (
+                        <div className="space-y-3">
+                            <Skeleton className="h-16 w-full" />
+                            <Skeleton className="h-16 w-full" />
+                        </div>
+                    ) : (drawings ?? []).length === 0 ? (
+                        <div className="flex h-40 items-center justify-center text-muted-foreground border border-dashed rounded-lg">
+                            No drawings found in this job.
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {(drawings ?? []).map((drawing) => {
+                                const sortedCols = columns ? [...columns].sort((a, b) => a.order - b.order) : [];
+                                const drawingLabel = sortedCols.length > 0
+                                    ? String(drawing.data[sortedCols[0]?.name] ?? `Drawing ${drawing.id.slice(0, 8)}`)
+                                    : `Drawing ${drawing.id.slice(0, 8)}`;
+                                return (
+                                    <div key={drawing.id} className="border rounded-lg">
+                                        <div className="px-4 py-3 bg-muted/20 border-b flex items-center justify-between">
+                                            <h4 className="text-sm font-semibold flex items-center gap-2">
+                                                {activeTab === 'joints' ? <Link2 className="h-3.5 w-3.5 text-muted-foreground" /> : <Component className="h-3.5 w-3.5 text-muted-foreground" />}
+                                                {drawingLabel}
+                                            </h4>
+                                        </div>
+                                        <div className="p-4">
+                                            {activeTab === 'joints' ? (
+                                                <JointTable drawingId={drawing.id} />
+                                            ) : (
+                                                <SpoolTable drawingId={drawing.id} />
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* Column Configuration Modal */}

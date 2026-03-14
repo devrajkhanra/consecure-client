@@ -123,3 +123,95 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Stage Badge Colors ───────────────────────────── */
+.stage-pending {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+.stage-fitup {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+.stage-welding {
+  background: linear-gradient(135deg, #ffedd5, #fed7aa);
+  color: #9a3412;
+  border: 1px solid #fdba74;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+.stage-erection {
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: #5b21b6;
+  border: 1px solid #c4b5fd;
+}
+.stage-completed {
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+/* Dark mode stage overrides */
+.dark .stage-pending {
+  background: linear-gradient(135deg, #451a03, #78350f);
+  color: #fde68a;
+  border: 1px solid #92400e;
+}
+.dark .stage-fitup {
+  background: linear-gradient(135deg, #1e1b4b, #1e3a5f);
+  color: #93c5fd;
+  border: 1px solid #1e40af;
+}
+.dark .stage-welding {
+  background: linear-gradient(135deg, #431407, #7c2d12);
+  color: #fdba74;
+  border: 1px solid #9a3412;
+  animation: pulse-glow-dark 2s ease-in-out infinite;
+}
+.dark .stage-erection {
+  background: linear-gradient(135deg, #2e1065, #4c1d95);
+  color: #c4b5fd;
+  border: 1px solid #5b21b6;
+}
+.dark .stage-completed {
+  background: linear-gradient(135deg, #022c22, #064e3b);
+  color: #6ee7b7;
+  border: 1px solid #065f46;
+}
+
+/* ── Accent Color Utility Classes ─────────────────── */
+.accent-blue    { --accent-color: #3b82f6; --accent-bg: #eff6ff; --accent-border: #bfdbfe; }
+.accent-emerald { --accent-color: #10b981; --accent-bg: #ecfdf5; --accent-border: #a7f3d0; }
+.accent-violet  { --accent-color: #8b5cf6; --accent-bg: #f5f3ff; --accent-border: #ddd6fe; }
+.accent-amber   { --accent-color: #f59e0b; --accent-bg: #fffbeb; --accent-border: #fde68a; }
+.accent-rose    { --accent-color: #f43f5e; --accent-bg: #fff1f2; --accent-border: #fecdd3; }
+
+.dark .accent-blue    { --accent-color: #60a5fa; --accent-bg: #1e3a5f20; --accent-border: #1e40af; }
+.dark .accent-emerald { --accent-color: #34d399; --accent-bg: #064e3b20; --accent-border: #065f46; }
+.dark .accent-violet  { --accent-color: #a78bfa; --accent-bg: #4c1d9520; --accent-border: #5b21b6; }
+.dark .accent-amber   { --accent-color: #fbbf24; --accent-bg: #78350f20; --accent-border: #92400e; }
+.dark .accent-rose    { --accent-color: #fb7185; --accent-bg: #9f123520; --accent-border: #9f1239; }
+
+/* ── Micro-Animations ─────────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
+  50% { box-shadow: 0 0 8px 2px rgba(251, 146, 60, 0.3); }
+}
+@keyframes pulse-glow-dark {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
+  50% { box-shadow: 0 0 8px 2px rgba(251, 146, 60, 0.2); }
+}
+
+/* ── Nav Icon Colors ──────────────────────────────── */
+.nav-icon-dashboard { color: #3b82f6; }
+.nav-icon-projects  { color: #8b5cf6; }
+.nav-icon-sites     { color: #10b981; }
+.nav-icon-jobs      { color: #f59e0b; }
+.nav-icon-settings  { color: #64748b; }
+
+.dark .nav-icon-dashboard { color: #60a5fa; }
+.dark .nav-icon-projects  { color: #a78bfa; }
+.dark .nav-icon-sites     { color: #34d399; }
+.dark .nav-icon-jobs      { color: #fbbf24; }
+.dark .nav-icon-settings  { color: #94a3b8; }

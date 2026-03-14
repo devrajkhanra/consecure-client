@@ -18,6 +18,7 @@ import {
     Download,
     FileText,
     SlidersHorizontal,
+    Link2,
 } from 'lucide-react';
 import {
     Table,
@@ -41,7 +42,108 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ColumnType, type Drawing, type DrawingColumn } from '@/types';
 import { DrawingHistoryDialog } from '@/components/drawings/change-history';
 import { MaterialTable } from '@/components/materials/material-table';
+import { JointTable } from '@/components/joints/joint-table';
+import { SpoolTable } from '@/components/spools/spool-table';
 import { useMaterialColumns } from '@/hooks/use-material-columns';
+import { useMaterials } from '@/hooks/use-materials';
+import { useJoints } from '@/hooks/use-joints';
+import { useSpools } from '@/hooks/use-spools';
+import type { MaterialColumn } from '@/types';
+
+// Inner panel with Materials/Joints/Spools tab toggle for expanded drawing rows
+function DrawingExpandedPanel({ drawingId, materialColumns }: { drawingId: string; materialColumns: MaterialColumn[] }) {
+    const [innerTab, setInnerTab] = useState<'materials' | 'joints' | 'spools'>('materials');
+    const { data: materials } = useMaterials(drawingId);
+    const { data: joints } = useJoints(drawingId);
+    const { data: spools } = useSpools(drawingId);
+
+    const materialsCount = materials?.length ?? 0;
+    const jointsCount = joints?.length ?? 0;
+    const spoolsCount = spools?.length ?? 0;
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center gap-1 rounded-md border bg-background p-0.5 w-fit">
+                <button
+                    onClick={() => setInnerTab('materials')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                        innerTab === 'materials'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }`}
+                >
+                    <Package className="h-3 w-3" />
+                    Materials
+                    {materialsCount > 0 && (
+                        <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            innerTab === 'materials'
+                                ? 'bg-primary-foreground/20 text-primary-foreground'
+                                : 'bg-muted text-muted-foreground'
+                        }`}>
+                            {materialsCount}
+                        </span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setInnerTab('joints')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                        innerTab === 'joints'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }`}
+                >
+                    <Link2 className="h-3 w-3" />
+                    Joints
+                    {jointsCount > 0 && (
+                        <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            innerTab === 'joints'
+                                ? 'bg-primary-foreground/20 text-primary-foreground'
+                                : 'bg-muted text-muted-foreground'
+                        }`}>
+                            {jointsCount}
+                        </span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setInnerTab('spools')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                        innerTab === 'spools'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }`}
+                >
+                    <Link2 className="h-3 w-3" />
+                    Spools
+                    {spoolsCount > 0 && (
+                        <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            innerTab === 'spools'
+                                ? 'bg-primary-foreground/20 text-primary-foreground'
+                                : 'bg-muted text-muted-foreground'
+                        }`}>
+                            {spoolsCount}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            <div className="pt-2">
+                {innerTab === 'materials' && (
+                    <MaterialTable drawingId={drawingId} columns={materialColumns} />
+                )}
+                {innerTab === 'joints' && (
+                    <div className="rounded-md border bg-card/50 p-4">
+                        <JointTable drawingId={drawingId} />
+                    </div>
+                )}
+                {innerTab === 'spools' && (
+                    <div className="rounded-md border bg-card/50 p-4">
+                        <SpoolTable drawingId={drawingId} />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 interface DrawingTableProps {
     jobId: string;
@@ -394,9 +496,9 @@ export function DrawingTable({ jobId, drawings, columns, onEdit, onDelete }: Dra
                                         <TableRow className="bg-muted/30 hover:bg-muted/30">
                                             <TableCell colSpan={visibleColumns.length + 2} className="p-4">
                                                 <div className="pl-8">
-                                                    <MaterialTable
+                                                    <DrawingExpandedPanel
                                                         drawingId={drawing.id}
-                                                        columns={materialColumns ?? []}
+                                                        materialColumns={materialColumns ?? []}
                                                     />
                                                 </div>
                                             </TableCell>

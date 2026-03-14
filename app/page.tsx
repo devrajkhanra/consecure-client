@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderKanban, MapPin, Briefcase, TrendingUp } from 'lucide-react';
+import { FolderKanban, MapPin, Briefcase, TrendingUp, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProjects } from '@/hooks/use-projects';
 import { useSites } from '@/hooks/use-sites';
@@ -15,6 +15,8 @@ function StatCard({
   icon: Icon,
   href,
   isLoading,
+  accentColor,
+  accentBg,
 }: {
   title: string;
   value: number;
@@ -22,21 +24,32 @@ function StatCard({
   icon: React.ElementType;
   href: string;
   isLoading: boolean;
+  accentColor: string;
+  accentBg: string;
 }) {
   return (
     <Link href={href}>
-      <Card className="transition-all hover:shadow-md hover:border-primary/50 cursor-pointer">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <Icon className="h-4 w-4 text-muted-foreground" />
+      <Card className="transition-all hover:shadow-lg hover:-translate-y-0.5 cursor-pointer group relative overflow-hidden">
+        <div
+          className="absolute inset-y-0 left-0 w-1 rounded-l-lg transition-all group-hover:w-1.5"
+          style={{ backgroundColor: accentColor }}
+        />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-lg transition-transform group-hover:scale-110"
+            style={{ backgroundColor: accentBg }}
+          >
+            <Icon className="h-4.5 w-4.5" style={{ color: accentColor }} />
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pl-5">
           {isLoading ? (
             <Skeleton className="h-8 w-16" />
           ) : (
-            <div className="text-2xl font-bold">{value}</div>
+            <div className="text-3xl font-bold tracking-tight">{value}</div>
           )}
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <p className="text-xs text-muted-foreground mt-1">{description}</p>
         </CardContent>
       </Card>
     </Link>
@@ -65,6 +78,8 @@ export default function DashboardPage() {
           icon={FolderKanban}
           href="/projects"
           isLoading={projectsLoading}
+          accentColor="#8b5cf6"
+          accentBg="#f5f3ff"
         />
         <StatCard
           title="Total Sites"
@@ -73,6 +88,8 @@ export default function DashboardPage() {
           icon={MapPin}
           href="/sites"
           isLoading={sitesLoading}
+          accentColor="#10b981"
+          accentBg="#ecfdf5"
         />
         <StatCard
           title="Total Jobs"
@@ -81,15 +98,26 @@ export default function DashboardPage() {
           icon={Briefcase}
           href="/jobs"
           isLoading={jobsLoading}
+          accentColor="#f59e0b"
+          accentBg="#fffbeb"
         />
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overview</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <Card className="relative overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0 w-1 rounded-l-lg"
+            style={{ backgroundColor: '#3b82f6' }}
+          />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pl-5">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Overview</CardTitle>
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-lg"
+              style={{ backgroundColor: '#eff6ff' }}
+            >
+              <TrendingUp className="h-4.5 w-4.5" style={{ color: '#3b82f6' }} />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">Active</div>
-            <p className="text-xs text-muted-foreground">System operational</p>
+          <CardContent className="pl-5">
+            <div className="text-2xl font-bold" style={{ color: '#10b981' }}>Active</div>
+            <p className="text-xs text-muted-foreground mt-1">System operational</p>
           </CardContent>
         </Card>
       </div>
@@ -108,20 +136,28 @@ export default function DashboardPage() {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : projects && projects.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {projects.slice(0, 5).map((project) => (
                   <Link
                     key={project.id}
                     href={`/projects/${project.id}`}
-                    className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted"
+                    className="flex items-center justify-between rounded-lg border p-3 transition-all hover:bg-muted/50 hover:shadow-sm group"
                   >
-                    <div>
-                      <p className="font-medium">{project.name}</p>
-                      <p className="text-sm text-muted-foreground">{project.clientName}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md" style={{ backgroundColor: '#f5f3ff' }}>
+                        <FolderKanban className="h-4 w-4" style={{ color: '#8b5cf6' }} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{project.name}</p>
+                        <p className="text-xs text-muted-foreground">{project.clientName}</p>
+                      </div>
                     </div>
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {project.workOrderNumber}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {project.workOrderNumber}
+                      </span>
+                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
+                    </div>
                   </Link>
                 ))}
               </div>
@@ -139,33 +175,42 @@ export default function DashboardPage() {
           <CardContent className="grid gap-2">
             <Link
               href="/projects?create=true"
-              className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted"
+              className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:bg-muted/50 hover:shadow-sm group"
             >
-              <FolderKanban className="h-5 w-5 text-primary" />
-              <div>
-                <p className="font-medium">Create Project</p>
-                <p className="text-sm text-muted-foreground">Start a new project</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ backgroundColor: '#f5f3ff' }}>
+                <FolderKanban className="h-4.5 w-4.5" style={{ color: '#8b5cf6' }} />
               </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">Create Project</p>
+                <p className="text-xs text-muted-foreground">Start a new project</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
             </Link>
             <Link
               href="/sites?create=true"
-              className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted"
+              className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:bg-muted/50 hover:shadow-sm group"
             >
-              <MapPin className="h-5 w-5 text-primary" />
-              <div>
-                <p className="font-medium">Add Site</p>
-                <p className="text-sm text-muted-foreground">Add a new site to a project</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ backgroundColor: '#ecfdf5' }}>
+                <MapPin className="h-4.5 w-4.5" style={{ color: '#10b981' }} />
               </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">Add Site</p>
+                <p className="text-xs text-muted-foreground">Add a new site to a project</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
             </Link>
             <Link
               href="/jobs?create=true"
-              className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted"
+              className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:bg-muted/50 hover:shadow-sm group"
             >
-              <Briefcase className="h-5 w-5 text-primary" />
-              <div>
-                <p className="font-medium">Create Job</p>
-                <p className="text-sm text-muted-foreground">Add a new job to a site</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ backgroundColor: '#fffbeb' }}>
+                <Briefcase className="h-4.5 w-4.5" style={{ color: '#f59e0b' }} />
               </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">Create Job</p>
+                <p className="text-xs text-muted-foreground">Add a new job to a site</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
             </Link>
           </CardContent>
         </Card>
