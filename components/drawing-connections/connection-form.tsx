@@ -19,7 +19,7 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form';
-import { ConnectionType } from '@/types';
+import { ConnectionType, MaterialStatus, JointStage } from '@/types';
 import type { DrawingConnection, CreateDrawingConnectionDto, Drawing, Material, Spool, Joint, DrawingColumn } from '@/types';
 
 // Helper to get formatted drawing label
@@ -77,6 +77,26 @@ export function ConnectionForm({
     });
 
     const currentType = form.watch('connectionType');
+
+    const availableMaterials = materials.filter(m => 
+        m.status === MaterialStatus.ISSUED || 
+        m.status === MaterialStatus.USED || 
+        m.id === connection?.materialId
+    );
+
+    const availableSpools = spools.filter(s => {
+        if (s.id === connection?.spoolId) return true;
+        if (!s.status) return true;
+        const lower = s.status.toLowerCase();
+        return lower.includes('issued') || lower.includes('used');
+    });
+
+    const availableJoints = joints.filter(j => 
+        j.stage === JointStage.WELDING || 
+        j.stage === JointStage.ERECTION || 
+        j.stage === JointStage.COMPLETED || 
+        j.id === connection?.jointId
+    );
 
     const handleSubmit = form.handleSubmit((values) => {
         const dto: CreateDrawingConnectionDto = {
@@ -195,7 +215,7 @@ export function ConnectionForm({
                                     </FormControl>
                                     <SelectContent>
                                         <SelectItem value="none" className="italic text-muted-foreground">None / Unknown</SelectItem>
-                                        {materials.map((m) => (
+                                        {availableMaterials.map((m) => (
                                             <SelectItem key={m.id} value={m.id}>
                                                 {getMaterialLabel(m)}
                                             </SelectItem>
@@ -223,7 +243,7 @@ export function ConnectionForm({
                                     </FormControl>
                                     <SelectContent>
                                         <SelectItem value="none" className="italic text-muted-foreground">None / Unknown</SelectItem>
-                                        {spools.map((s) => (
+                                        {availableSpools.map((s) => (
                                             <SelectItem key={s.id} value={s.id}>
                                                 {s.spoolNumber}
                                             </SelectItem>
@@ -251,7 +271,7 @@ export function ConnectionForm({
                                     </FormControl>
                                     <SelectContent>
                                         <SelectItem value="none" className="italic text-muted-foreground">None / Unknown</SelectItem>
-                                        {joints.map((j) => (
+                                        {availableJoints.map((j) => (
                                             <SelectItem key={j.id} value={j.id}>
                                                 {j.jointNumber}
                                             </SelectItem>

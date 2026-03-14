@@ -42,6 +42,12 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -74,6 +80,8 @@ import { useJobMaterials } from '@/hooks/use-materials';
 import { SpoolTable } from '@/components/spools/spool-table';
 import { ConnectionTable } from '@/components/drawing-connections/connection-table';
 import { JobMaterialsTable } from '@/components/materials/job-materials-table';
+import { JobJointsTable } from '@/components/joints/job-joints-table';
+import { JobSpoolsTable } from '@/components/spools/job-spools-table';
 import { JointTable } from '@/components/joints/joint-table';
 import type { CreateJobDto, Drawing, CreateDrawingDto } from '@/types';
 
@@ -456,50 +464,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 </div>
             ) : activeTab === 'materials' ? (
                 <JobMaterialsTable jobId={id} />
+            ) : activeTab === 'joints' ? (
+                <JobJointsTable jobId={id} />
+            ) : activeTab === 'spools' ? (
+                <JobSpoolsTable jobId={id} />
             ) : activeTab === 'connections' ? (
                 <div className="rounded-md border bg-card/50 p-4">
                     <ConnectionTable drawings={drawings ?? []} drawingColumns={columns ?? []} jobId={id} />
                 </div>
-            ) : (
-                <div>
-                    {drawingsLoading ? (
-                        <div className="space-y-3">
-                            <Skeleton className="h-16 w-full" />
-                            <Skeleton className="h-16 w-full" />
-                        </div>
-                    ) : (drawings ?? []).length === 0 ? (
-                        <div className="flex h-40 items-center justify-center text-muted-foreground border border-dashed rounded-lg">
-                            No drawings found in this job.
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {(drawings ?? []).map((drawing) => {
-                                const sortedCols = columns ? [...columns].sort((a, b) => a.order - b.order) : [];
-                                const drawingLabel = sortedCols.length > 0
-                                    ? String(drawing.data[sortedCols[0]?.name] ?? `Drawing ${drawing.id.slice(0, 8)}`)
-                                    : `Drawing ${drawing.id.slice(0, 8)}`;
-                                return (
-                                    <div key={drawing.id} className="border rounded-lg">
-                                        <div className="px-4 py-3 bg-muted/20 border-b flex items-center justify-between">
-                                            <h4 className="text-sm font-semibold flex items-center gap-2">
-                                                {activeTab === 'joints' ? <Link2 className="h-3.5 w-3.5 text-muted-foreground" /> : <Component className="h-3.5 w-3.5 text-muted-foreground" />}
-                                                {drawingLabel}
-                                            </h4>
-                                        </div>
-                                        <div className="p-4">
-                                            {activeTab === 'joints' ? (
-                                                <JointTable drawingId={drawing.id} />
-                                            ) : (
-                                                <SpoolTable drawingId={drawing.id} />
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            )}
+            ) : null}
 
             {/* Column Configuration Modal */}
             <Dialog open={isColumnConfigOpen} onOpenChange={setIsColumnConfigOpen}>

@@ -19,6 +19,7 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form';
+import { MaterialStatus } from '@/types';
 import type { Joint, CreateJointDto, Material } from '@/types';
 
 interface JointFormProps {
@@ -49,7 +50,6 @@ export function JointForm({ joint, materials, onSubmit, isLoading, onCancel }: J
         onSubmit(dto);
     });
 
-    // Helper to get a material display name from its dynamic data
     const getMaterialLabel = (material: Material): string => {
         const dataKeys = Object.keys(material.data);
         if (dataKeys.length > 0) {
@@ -58,6 +58,13 @@ export function JointForm({ joint, materials, onSubmit, isLoading, onCancel }: J
         }
         return `Material ${material.id.slice(0, 8)}`;
     };
+
+    const availableMaterials = materials.filter(m => 
+        m.status === MaterialStatus.ISSUED || 
+        m.status === MaterialStatus.USED || 
+        m.id === joint?.materialOneId || 
+        m.id === joint?.materialTwoId
+    );
 
     return (
         <Form {...form}>
@@ -90,7 +97,7 @@ export function JointForm({ joint, materials, onSubmit, isLoading, onCancel }: J
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {materials.map((m) => (
+                                    {availableMaterials.map((m) => (
                                         <SelectItem key={m.id} value={m.id}>
                                             {getMaterialLabel(m)}
                                         </SelectItem>
@@ -115,7 +122,7 @@ export function JointForm({ joint, materials, onSubmit, isLoading, onCancel }: J
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {materials.map((m) => (
+                                    {availableMaterials.map((m) => (
                                         <SelectItem key={m.id} value={m.id}>
                                             {getMaterialLabel(m)}
                                         </SelectItem>

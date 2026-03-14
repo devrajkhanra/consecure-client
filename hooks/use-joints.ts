@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { useDrawings } from './use-drawings';
 import type { Joint, CreateJointDto, UpdateJointDto, UpdateJointStageDto } from '@/types';
 
 const QUERY_KEY = 'joints';
@@ -14,6 +15,35 @@ export function useJoints(drawingId: string | undefined) {
         },
         enabled: !!drawingId,
     });
+}
+
+// Fetch all joints across ALL drawings for a job
+export function useJobJoints(jobId: string | undefined) {
+    const { data: drawings } = useDrawings(jobId);
+    
+    const results = useQueries({
+        queries: (drawings ?? []).map((drawing) => ({
+            queryKey: [QUERY_KEY, drawing.id],
+            queryFn: async (): Promise<Joint[]> => {
+                const { data } = await api.get<Joint[]>(`/drawings/${drawing.id}/joints`);
+                return data;
+            },
+            staleTime: 1000 * 60 * 5, // Cache for 5 mins to prevent spam
+        })),
+        combine: (results) => {
+            return {
+                data: results.map((result) => result.data ?? []).flat(),
+                isLoading: results.some((result) => result.isLoading),
+                isError: results.some((result) => result.isError),
+            };
+        },
+    });
+
+    return {
+        ...results,
+        // If drawings haven't loaded yet, we are still loading overall
+        isLoading: results.isLoading || (!!jobId && !drawings),
+    };
 }
 
 // Create joint mutation
