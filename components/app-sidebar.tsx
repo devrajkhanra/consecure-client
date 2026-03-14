@@ -25,7 +25,12 @@ import {
     Settings,
     Shield,
     ChevronRight,
+    Users,
 } from 'lucide-react';
+import { NotificationBell } from '@/components/auth/notification-bell';
+import { UserMenu } from '@/components/auth/user-menu';
+import { useAuth } from '@/lib/auth/context';
+import { Role, hasMinRole } from '@/types/auth';
 
 const navigationItems = [
     {
@@ -70,6 +75,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ children }: AppSidebarProps) {
     const pathname = usePathname();
+    const { user } = useAuth();
 
     const isActive = (href: string) => {
         if (href === '/') {
@@ -129,6 +135,20 @@ export function AppSidebar({ children }: AppSidebarProps) {
 
                     <SidebarFooter className="border-t border-sidebar-border p-3">
                         <SidebarMenu>
+                            {user && hasMinRole(user.role, Role.ADMIN) && (
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={isActive('/admin')}
+                                        className="h-10 px-3"
+                                    >
+                                        <Link href="/admin/users" className="flex items-center gap-3">
+                                            <Users className="h-4 w-4" />
+                                            <span>User Management</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )}
                             <SidebarMenuItem>
                                 <SidebarMenuButton className="h-10 px-3">
                                     <Settings className="h-4 w-4 nav-icon-settings" />
@@ -155,6 +175,10 @@ export function AppSidebar({ children }: AppSidebarProps) {
                             ))}
                         </nav>
                         <div className="flex-1" />
+                        <div className="flex items-center gap-2">
+                            <NotificationBell />
+                            <UserMenu />
+                        </div>
                     </header>
                     <div className="flex-1 overflow-auto p-6">
                         {children}

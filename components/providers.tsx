@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState, type ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { AuthProvider } from '@/lib/auth/context';
 
 interface ProvidersProps {
     children: ReactNode;
@@ -35,10 +36,12 @@ export function Providers({ children }: ProvidersProps) {
 
     return (
         <QueryClientProvider client={queryClient}>
-            <TooltipProvider>
-                {children}
-                <Toaster position="top-right" richColors closeButton />
-            </TooltipProvider>
+            <AuthProvider>
+                <TooltipProvider>
+                    {children}
+                    <Toaster position="top-right" richColors closeButton />
+                </TooltipProvider>
+            </AuthProvider>
             {process.env.NODE_ENV === 'development' && (
                 <ReactQueryDevtools initialIsOpen={false} />
             )}

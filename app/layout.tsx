@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { AppSidebar } from "@/components/app-sidebar";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -23,9 +22,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
-          <AppSidebar>
-            {children}
-          </AppSidebar>
+          {children}
         </Providers>
       </body>
     </html>
